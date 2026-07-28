@@ -1,0 +1,3762 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ocupación Centro de Distribución</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#2E2A22;
+    --panel:#26221B;
+    --panel-2:#3A3327;
+    --border:#453C2C;
+    --text:#F1E9DA;
+    --text-dim:#C9BEA9;
+    --text-faint:#8F8570;
+    --amber:#E8B93D;
+    --amber-dim:#C99A2E;
+    --amber-soft:rgba(232,185,61,.13);
+    --brown:#8B5E34;
+    --good:#6FBF8B;
+    --warn:#E2665F;
+    --grid-line:#39331F;
+    --capbar:#3D3A34;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0/100% 28px,
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0/28px 100%,
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  .wrap{max-width:1220px;margin:0 auto;padding:0 20px;}
+
+  /* Top bar */
+  .topbar{
+    background:#3D3A34;color:#F1E9DA;padding:15px 24px;
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;
+    margin-bottom:22px;border-bottom:1px solid var(--border);
+  }
+  .topbar-left{display:flex;align-items:center;gap:12px;}
+  .topbar-title{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;letter-spacing:.01em;color:var(--amber);}
+  .topbar-sub{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#8F8570;letter-spacing:.08em;text-transform:uppercase;margin-top:2px;}
+  .clock{text-align:right;font-family:'JetBrains Mono',monospace;}
+  .clock-time{font-size:16px;font-weight:600;color:#F1E9DA;}
+  .clock-date{font-size:10.5px;color:#8F8570;letter-spacing:.05em;}
+  .status-pills{display:flex;gap:10px;flex-wrap:wrap;}
+  .pill{
+    display:flex;align-items:center;gap:7px;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+    border-radius:8px;padding:7px 11px;cursor:pointer;
+    font-size:12px;color:#C9BEA9;transition:border-color .15s;
+  }
+  .pill:hover{border-color:var(--amber);}
+  .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .dot.on{background:#6FBF8B;box-shadow:0 0 6px #6FBF8B;}
+  .dot.off{background:#5C5240;}
+  .pill strong{color:#F1E9DA;font-weight:600;}
+
+  /* Section / filter bar */
+  .report-tabs{display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);}
+  .report-tab{
+    font-family:'Space Grotesk',sans-serif;font-size:13.5px;font-weight:600;color:var(--text-faint);
+    background:transparent;border:none;padding:10px 18px;cursor:pointer;
+    border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;
+  }
+  .report-tab:hover{color:var(--text-dim);}
+  .report-tab.active{color:var(--amber);border-bottom-color:var(--amber);}
+
+  .section-bar{
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;
+    margin-bottom:16px;
+  }
+  .section-bar-title{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--text-faint);display:flex;align-items:center;gap:8px;
+  }
+  .section-bar-title .led{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 5px var(--good);}
+  .filter-group{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .filter-group label{font-size:11.5px;color:var(--text-faint);margin-right:-4px;}
+  select.filter-select{
+    font-family:'Inter',sans-serif;font-size:12.5px;color:var(--text);
+    background:var(--panel-2);border:1px solid var(--border);border-radius:7px;
+    padding:7px 10px;cursor:pointer;min-width:150px;
+  }
+  select.filter-select:focus{outline:2px solid var(--amber-dim);outline-offset:1px;}
+
+  /* Cards */
+  .card{
+    background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;padding:20px 22px;
+  }
+  .card + .card{margin-top:16px;}
+  .card-title{font-family:'Space Grotesk',sans-serif;font-size:14.5px;font-weight:600;margin:0 0 2px;color:var(--text);}
+  .card-sub{color:var(--text-faint);font-size:12px;margin:0 0 16px;}
+
+  /* Empty state */
+  .empty{
+    text-align:center;padding:70px 20px;border:1.5px dashed var(--border);
+    border-radius:14px;background:var(--panel);
+  }
+  .empty h2{font-family:'Space Grotesk',sans-serif;font-size:19px;margin:14px 0 6px;color:var(--text);}
+  .empty p{color:var(--text-dim);font-size:13.5px;max-width:420px;margin:0 auto 20px;}
+  .empty svg{opacity:.6;}
+
+  /* Buttons */
+  .btn{
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+    background:var(--amber);color:#3D3A34;border:none;border-radius:8px;
+    padding:10px 18px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+    transition:filter .15s;
+  }
+  .btn:hover{filter:brightness(1.08);}
+  .btn.secondary{background:transparent;color:var(--text);border:1px solid var(--border);}
+  .btn.secondary:hover{border-color:var(--amber-dim);}
+  .btn.ghost{background:transparent;color:var(--text-faint);border:none;padding:6px 8px;font-size:12px;font-weight:500;}
+  .btn.ghost:hover{color:var(--warn);}
+
+  /* Top row: KPI grid + trend chart */
+  .top-row{display:grid;grid-template-columns:330px 1fr;gap:14px;margin-bottom:16px;align-items:stretch;}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:13px 14px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;}
+  .kpi-label{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);}
+  .kpi-value{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;margin-top:5px;line-height:1;color:var(--amber);}
+  .kpi-value .unit{font-size:12px;color:var(--text-dim);font-weight:500;margin-left:2px;}
+  .kpi-delta{font-family:'JetBrains Mono',monospace;font-size:10.5px;margin-top:7px;display:flex;align-items:center;gap:5px;}
+  .kpi-delta.up{color:var(--good);}
+  .kpi-delta.down{color:var(--warn);}
+  .kpi-delta.flat{color:var(--text-faint);}
+  .kpi-foot{font-size:10px;color:var(--text-faint);margin-top:2px;}
+  .kpi-foot-lg{font-size:13px;font-weight:600;margin-top:5px;}
+  .kpi-delta-lg{font-size:14px !important;font-weight:700;margin-top:9px !important;}
+  .trend-card{display:flex;flex-direction:column;}
+  .trend-card .chart-box{flex:1;}
+
+  /* Alert / notice cards */
+  .notice-card{border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:12.5px;}
+
+  /* Zone chips */
+  .placard{
+    font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;
+    background:var(--amber);color:#3D3A34;padding:3px 7px;border-radius:4px;
+    letter-spacing:.03em;display:inline-block;
+  }
+
+  /* Chart layout */
+  .two-col{display:grid;grid-template-columns:1fr 1.15fr;gap:16px;}
+  .two-col > .card{margin-top:0;}
+  .chart-box{height:250px;position:relative;}
+
+  /* Donut + legend */
+  .donut-row{display:flex;align-items:center;gap:22px;}
+  .donut-chart-box{width:170px;height:170px;flex-shrink:0;position:relative;}
+  .donut-legend{display:grid;grid-template-columns:1fr;gap:10px;flex:1;}
+  .donut-legend-item{display:flex;align-items:flex-start;gap:9px;}
+  .donut-dot{width:11px;height:11px;border-radius:3px;margin-top:3px;flex-shrink:0;}
+  .donut-legend-code{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:var(--text);}
+  .donut-legend-sub{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+  .donut-stats{margin-top:5px;display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .donut-stat-row{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:var(--text-faint);white-space:nowrap;}
+  .donut-stat-row b{color:var(--text-dim);font-weight:600;font-family:'JetBrains Mono',monospace;}
+
+  /* Tipo almacén bars */
+  .tipo-list{display:flex;flex-direction:column;gap:12px;margin-top:4px;}
+  .tipo-row{display:flex;align-items:center;gap:10px;}
+  .tipo-label{width:110px;flex-shrink:0;font-size:12px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tipo-bar-track{flex:1;height:16px;background:var(--panel-2);border-radius:5px;overflow:hidden;position:relative;}
+  .tipo-bar-fill{height:100%;background:linear-gradient(90deg,var(--brown),var(--amber));border-radius:5px;}
+  .tipo-value{width:120px;flex-shrink:0;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--text);}
+  .tipo-value .tipo-value-total{color:var(--text-faint);font-weight:400;}
+  .seg-bar{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--border);}
+  .seg-bar > div{height:100%;}
+  .seg-legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px;}
+  .seg-legend-item{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-dim);}
+  .seg-legend-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0;}
+  .exp-row{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--panel-2);border:1px solid var(--border);border-radius:7px;margin-top:8px;transition:border-color .15s;}
+  .exp-row:hover{border-color:var(--amber-dim);}
+  .exp-row.open{border-color:var(--amber);}
+  .exp-row-left{display:flex;align-items:center;gap:10px;}
+  .exp-chevron{font-family:monospace;font-size:11px;color:var(--text-faint);transition:transform .15s;}
+  .exp-row.open .exp-chevron{transform:rotate(90deg);color:var(--amber);}
+  .exp-stats{display:flex;gap:20px;font-family:'JetBrains Mono',monospace;font-size:12px;flex-wrap:wrap;}
+  .exp-stats span{color:var(--text-faint);}
+  .exp-stats b{color:var(--text);font-weight:600;margin-left:4px;}
+  .exp-detail{padding:10px 4px 4px;margin-top:2px;}
+
+  /* Heatmap */
+  .heatmap{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+  .heat-row{display:flex;align-items:center;gap:10px;}
+  .heat-zone-label{width:190px;flex-shrink:0;display:flex;flex-direction:column;gap:3px;}
+  .heat-zone-name{font-size:11.5px;color:var(--text-dim);}
+  .heat-cells{display:flex;gap:6px;flex:1;flex-wrap:wrap;}
+  .heat-cell{
+    flex:1;min-width:58px;height:64px;border-radius:6px;border:1px solid var(--border);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .heat-cell .p-label{font-size:9px;}
+  .heat-cell .p-value{font-size:13px;font-weight:600;}
+  .heat-cell .p-counts{font-size:8.5px;opacity:.85;}
+  .legend{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:11px;color:var(--text-faint);}
+  .legend-bar{width:120px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--panel-2),#B5842E,var(--amber));}
+
+  /* Toggle */
+  .toggle-group{display:flex;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;}
+  .toggle-group button{
+    font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--text-faint);
+    background:transparent;border:none;padding:6px 13px;border-radius:6px;cursor:pointer;
+  }
+  .toggle-group button.active{background:var(--amber);color:#3D3A34;}
+  .card-head-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+  .card-head-row .card-title, .card-head-row .card-sub{margin-bottom:0;}
+
+  /* Table */
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--border);}
+  th.th-tipo{font-family:'Inter',sans-serif;font-size:12px;letter-spacing:0;text-transform:none;font-weight:600;color:var(--text-dim);white-space:nowrap;padding:8px 14px;}
+  td{padding:9px 10px;border-bottom:1px solid var(--grid-line);color:var(--text-dim);}
+  tr:last-child td{border-bottom:none;}
+  td.num, th.num{text-align:right;font-family:'JetBrains Mono',monospace;}
+  td.strong{color:var(--text);font-weight:600;}
+
+  /* Modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:20px;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    max-width:520px;width:100%;padding:26px;max-height:88vh;overflow-y:auto;
+  }
+  .modal h3{font-family:'Space Grotesk',sans-serif;font-size:17px;margin:0 0 4px;color:var(--text);}
+  .modal p.hint{color:var(--text-faint);font-size:12.5px;margin:0 0 18px;}
+  .dropzone{
+    border:1.5px dashed var(--border);border-radius:10px;padding:26px 16px;
+    text-align:center;cursor:pointer;transition:border-color .15s,background .15s;
+    margin-bottom:14px;
+  }
+  .dropzone:hover, .dropzone.drag{border-color:var(--amber);background:var(--amber-soft);}
+  .dropzone p{margin:10px 0 2px;font-size:13px;color:var(--text-dim);}
+  .dropzone span{font-size:11px;color:var(--text-faint);}
+  .modal-close{float:right;background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;line-height:1;}
+  .file-list{margin-top:10px;font-size:12px;color:var(--text-dim);}
+  .file-list div{padding:4px 0;border-bottom:1px solid var(--grid-line);display:flex;justify-content:space-between;}
+  .status-msg{font-size:12px;margin-top:12px;padding:8px 10px;border-radius:6px;}
+  .status-msg.ok{background:rgba(111,191,139,.14);color:var(--good);}
+  .status-msg.err{background:rgba(226,102,95,.14);color:var(--warn);}
+  .field-note{font-size:11.5px;color:var(--text-faint);margin-top:14px;line-height:1.5;}
+
+  .section-gap{margin-top:22px;}
+  .fade-in{animation:fadeIn .35s ease both;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  @media(max-width:820px){
+    .top-row{grid-template-columns:1fr;}
+    .two-col{grid-template-columns:1fr;}
+    .heat-zone-label{width:120px;}
+    .donut-row{flex-direction:column;align-items:flex-start;}
+    .tipo-label{width:90px;}
+    .tipo-value{width:100px;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title">Dashboard Centro Distribución</div>
+        <div class="topbar-sub">Reporte de bodega</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px;">
+      <div class="status-pills">
+        <div class="pill" id="pillBases" onclick="setTab('carga')">
+          <span class="dot off" id="dotBases"></span>
+          <span id="pillBasesText">Bases: sin cargar</span>
+        </div>
+        <div class="pill" id="pillStock" onclick="setTab('carga')">
+          <span class="dot off" id="dotStock"></span>
+          <span id="pillStockText">Stock: sin cortes</span>
+        </div>
+        <div class="pill" onclick="exportBackup()" title="Descarga un archivo con tus bases y cortes actuales">
+          ⬇ Exportar respaldo
+        </div>
+        <div class="pill" onclick="document.getElementById('fileImport').click()" title="Restaura bases y cortes desde un archivo exportado antes">
+          ⬆ Importar respaldo
+        </div>
+        <input type="file" id="fileImport" accept=".json" style="display:none">
+      </div>
+      <div class="clock" id="headerClock"></div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div id="app"></div>
+  </div>
+
+<!-- MODAL: Bases -->
+<div class="overlay" id="overlayBases">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('bases')">✕</button>
+    <h3>Base de posiciones y zonas</h3>
+    <p class="hint">Archivo "Bases Capacidad CD" — pestañas "Base de posiciones" y "TIPO ZONA". Se actualiza pocas veces; reemplaza la versión anterior.</p>
+    <div class="dropzone" id="dropBases" onclick="document.getElementById('fileBases').click()">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      <p>Arrastra el archivo .xlsx aquí</p>
+      <span>o haz clic para seleccionar</span>
+    </div>
+    <input type="file" id="fileBases" accept=".xlsx,.xls" style="display:none">
+    <div id="basesStatus"></div>
+    <div class="field-note" id="basesInfo"></div>
+  </div>
+</div>
+
+<!-- MODAL: Stock -->
+<div class="overlay" id="overlayStock">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('stock')">✕</button>
+    <h3>Cortes de stock (EWM)</h3>
+    <p class="hint">Archivos <span style="font-family:'JetBrains Mono',monospace">EXPORT_AAAAMMDD_HHMMSS.xlsx</span> — pestaña "Data". Puedes subir varios a la vez para reconstruir el histórico. La fecha se toma del nombre del archivo.</p>
+    <div class="dropzone" id="dropStock" onclick="document.getElementById('fileStock').click()">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      <p>Arrastra uno o más cortes aquí</p>
+      <span>o haz clic para seleccionar</span>
+    </div>
+    <input type="file" id="fileStock" accept=".xlsx,.xls" multiple style="display:none">
+    <div id="stockStatus"></div>
+    <div id="stockFileList" class="file-list"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayStockMM">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('stockMM')">✕</button>
+    <h3>Cortes de stock MM</h3>
+    <p class="hint">Fuente adicional (sin ubicaciones) — mismo formato de nombre de archivo que EWM. Columnas: Centro, Almacén, Material, Texto breve material, Unidad medida base, Libre utilización, Valor libre util. Solo alimenta la pestaña Inventario.</p>
+    <div class="dropzone" id="dropStockMM" onclick="document.getElementById('fileStockMM').click()">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      <p>Arrastra uno o más cortes MM aquí</p>
+      <span>o haz clic para seleccionar</span>
+    </div>
+    <input type="file" id="fileStockMM" accept=".xlsx,.xls" multiple style="display:none">
+    <div id="stockMMStatus"></div>
+    <div id="stockMMFileList" class="file-list"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayDifInv">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('difInv')">✕</button>
+    <h3>Diferencias de inventario CD COL</h3>
+    <p class="hint">Archivo "Diferencias de inventarios CD COL" — solo se leen las pestañas "Z031" (Inventario Cajas) y "Z005" (Inventario Polines). Alimenta la pestaña Inventarios.</p>
+    <div class="dropzone" id="dropDifInv" onclick="document.getElementById('fileDifInv').click()">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      <p>Arrastra el archivo aquí</p>
+      <span>o haz clic para seleccionar</span>
+    </div>
+    <input type="file" id="fileDifInv" accept=".xlsx,.xls" multiple style="display:none">
+    <div id="difInvStatus"></div>
+    <div id="difInvFileList" class="file-list"></div>
+  </div>
+</div>
+
+<script>
+XLSX.SSF = XLSX.SSF || {};
+
+/* ---------------- storage helpers (IndexedDB — funciona fuera de Claude.ai, ej. GitHub Pages) ---------------- */
+const DB_NAME = 'reporte_ocupacion_cd';
+const DB_STORE = 'kv';
+let _dbPromise = null;
+function _openDB(){
+  if(_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject)=>{
+    if(!('indexedDB' in window)){ reject(new Error('IndexedDB no disponible en este navegador.')); return; }
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = ()=>{
+      if(!req.result.objectStoreNames.contains(DB_STORE)) req.result.createObjectStore(DB_STORE);
+    };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+  return _dbPromise;
+}
+async function getStore(key){
+  try{
+    const db = await _openDB();
+    return await new Promise((resolve)=>{
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).get(key);
+      req.onsuccess = ()=> resolve(req.result !== undefined ? req.result : null);
+      req.onerror = ()=> resolve(null);
+    });
+  }catch(e){ console.error('storage read error', e); return null; }
+}
+const _storageQueues = {};
+function setStore(key, val){
+  const prevChain = _storageQueues[key] || Promise.resolve();
+  const runNext = prevChain.then(() => _doSetStore(key, val));
+  _storageQueues[key] = runNext.catch(()=>null);
+  return runNext;
+}
+async function _doSetStore(key, val){
+  for(let attempt=1; attempt<=3; attempt++){
+    try{
+      const db = await _openDB();
+      const ok = await new Promise((resolve)=>{
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).put(val, key);
+        tx.oncomplete = ()=> resolve(true);
+        tx.onerror = ()=> resolve(false);
+        tx.onabort = ()=> resolve(false);
+      });
+      if(ok) return true;
+    }catch(e){
+      console.error('storage error (attempt '+attempt+')', e);
+    }
+    if(attempt<3) await new Promise(res=>setTimeout(res, attempt*700));
+  }
+  return null;
+}
+function showToast(message, type){
+  let el = document.getElementById('toastBox');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'toastBox';
+    el.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:340px;';
+    document.body.appendChild(el);
+  }
+  const item = document.createElement('div');
+  const bg = type==='err' ? 'rgba(226,102,95,.16)' : 'rgba(111,191,139,.16)';
+  const border = type==='err' ? 'rgba(226,102,95,.4)' : 'rgba(111,191,139,.4)';
+  const color = type==='err' ? '#F3A39D' : '#8FD9AC';
+  item.style.cssText = `background:${bg};border:1px solid ${border};color:${color};padding:11px 14px;border-radius:9px;font-size:12.5px;font-family:'Inter',sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);animation:fadeIn .25s ease both;`;
+  item.textContent = message;
+  el.appendChild(item);
+  setTimeout(()=> item.remove(), 6000);
+}
+
+let bases = null;
+let snapshots = [];
+let mmSnapshots = [];
+let difInvSnapshots = [];
+let filterZona = 'ALL';
+let filterPasillo = 'ALL';
+let filterSemana = 'ALL';
+function setFilterSemana(v){
+  filterSemana = v;
+  renderApp();
+}
+window.setFilterSemana = setFilterSemana;
+function getWeekKey(fecha){
+  const d = new Date(fecha);
+  const day = (d.getDay()+6)%7; // lunes=0
+  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate()-day);
+  return monday.toISOString().slice(0,10);
+}
+function getWeekLabel(weekKey){
+  const monday = new Date(weekKey+'T00:00:00');
+  const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+  const fmt = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  return `Semana ${fmt(monday)}–${fmt(sunday)}`;
+}
+
+/* ---------------- zone label fallback ---------------- */
+const ZONA_FALLBACK = {
+  '9020':'Zonas de tránsito','Z001':'Materia prima - Insumos','Z002':'Pan',
+  'Z003':'Importados - Rebalse MP','Z005':'Polines','Z006':'Salida PTL ficticia',
+  'Z011':'Picking Rauco','Z031':'Picking cajas','Z012':'Picking uniformes'
+};
+function zonaName(code){
+  if(bases && bases.zonas && bases.zonas[code]) return titleCase(bases.zonas[code]);
+  if(ZONA_FALLBACK[code]) return ZONA_FALLBACK[code];
+  return code || '(sin código)';
+}
+function titleCase(s){
+  return s.toLowerCase().replace(/(^|\s|-)\S/g, c => c.toUpperCase());
+}
+
+/* ---------------- number parsing (robust to es-CL formatted text) ---------------- */
+function parseNumber(v){
+  if(typeof v === 'number') return v;
+  if(v === null || v === undefined || v === '') return 0;
+  let s = String(v).trim();
+  if(/^-?\d{1,3}(\.\d{3})*(,\d+)?$/.test(s)){
+    s = s.replace(/\./g,'').replace(',', '.');
+  } else {
+    s = s.replace(/,/g,'');
+  }
+  const n = Number(s);
+  return isNaN(n) ? 0 : n;
+}
+
+/* ---------------- product code normalization (robust to leading zeros, text vs number, invisible chars) ---------------- */
+function normalizeProducto(v){
+  let s = String(v ?? '');
+  s = s.replace(/[\u200B-\u200D\uFEFF\u00A0]/g, ''); // zero-width/BOM/nbsp
+  s = s.replace(/^'/, ''); // stray leading apostrophe some tools leave on text-forced numbers
+  s = s.trim();
+  if(/^\d+$/.test(s)){
+    s = s.replace(/^0+(?=\d)/, '');
+  }
+  return s;
+}
+
+/* ---------------- fuzzy sheet lookup (tolerant to case / extra spaces in tab names) ---------------- */
+function getSheet(wb, name){
+  if(wb.Sheets[name]) return wb.Sheets[name];
+  const target = name.trim().toLowerCase().replace(/\s+/g,' ');
+  const found = wb.SheetNames.find(n => n.trim().toLowerCase().replace(/\s+/g,' ') === target);
+  return found ? wb.Sheets[found] : null;
+}
+
+/* ---------------- tolerant column lookup (case/whitespace insensitive header matching) ---------------- */
+function getCol(row, name){
+  if(row[name] !== undefined) return row[name];
+  const target = name.trim().toLowerCase();
+  const key = Object.keys(row).find(k => k.trim().toLowerCase() === target);
+  return key !== undefined ? row[key] : undefined;
+}
+
+/* ---------------- parsing ---------------- */
+function parseBasesWorkbook(wb){
+  const posSheet = getSheet(wb, 'Base de posiciones');
+  const zonaSheet = getSheet(wb, 'TIPO ZONA');
+  const clusterSheet = getSheet(wb, 'Cluster Tipo Material');
+  const costoSheet = getSheet(wb, 'costos');
+  if(!posSheet) throw new Error('No se encontró la pestaña "Base de posiciones".');
+  const posRows = XLSX.utils.sheet_to_json(posSheet, {defval:null});
+  const locations = posRows.map(r => ({
+    ubicacion: String(getCol(r,'Ubicación') ?? '').trim(),
+    zonaCD: String(getCol(r,'ZONA CD') ?? '').trim(),
+    pasillo: String(getCol(r,'PASILLO') ?? '').trim(),
+    tipoAlmacen: String(getCol(r,'Tipo almacén') ?? '').trim(),
+    uso: String(getCol(r,'USO') ?? '').trim().toUpperCase()
+  })).filter(r => r.ubicacion);
+
+  let zonas = {};
+  if(zonaSheet){
+    const zonaRows = XLSX.utils.sheet_to_json(zonaSheet, {defval:null});
+    zonaRows.forEach(r=>{
+      const code = String(getCol(r,'TIPO ALMACEN') ?? '').trim();
+      const desc = String(getCol(r,'DESCRIPCIÓN') ?? getCol(r,'DESCRIPCION') ?? '').trim();
+      if(code) zonas[code] = desc;
+    });
+  }
+
+  let materiales = {};
+  let modulaciones = {};
+  if(clusterSheet){
+    const clusterRows = XLSX.utils.sheet_to_json(clusterSheet, {defval:null});
+    clusterRows.forEach(r=>{
+      const producto = normalizeProducto(getCol(r,'Producto'));
+      const tipoMaterial = String(getCol(r,'TIPO MATERIAL') ?? '').trim();
+      if(producto) materiales[producto] = tipoMaterial || 'Sin tipo asignado';
+      const mod1 = parseNumber(getCol(r,'MODULACION 1') ?? getCol(r,'Modulacion 1') ?? getCol(r,'Modulación 1'));
+      if(producto && mod1 > 0) modulaciones[producto] = mod1;
+    });
+  }
+
+  let costos = {};
+  if(costoSheet){
+    const costoRows = XLSX.utils.sheet_to_json(costoSheet, {defval:null});
+    costoRows.forEach(r=>{
+      const producto = normalizeProducto(getCol(r,'Material') ?? getCol(r,'Producto') ?? getCol(r,'Código') ?? getCol(r,'Codigo') ?? getCol(r,'COD. SAP'));
+      const precio = parseNumber(getCol(r,'Precio'));
+      const cantidadBase = parseNumber(getCol(r,'Cantidad base') ?? getCol(r,'Cantidad Base') ?? getCol(r,'CANTIDAD BASE'));
+      if(producto && cantidadBase > 0){
+        costos[producto] = precio / cantidadBase;
+      }
+    });
+  }
+
+  return { locations, zonas, materiales, costos, modulaciones };
+}
+
+function formatCellDate(v){
+  if(v instanceof Date && !isNaN(v)) return v.toLocaleDateString('es-CL');
+  return v==null ? '' : String(v).trim();
+}
+
+function extractAlmacenSigla(denomin){
+  const s = String(denomin ?? '').trim();
+  const m = s.match(/([A-Z]{1,3}\d{2,3})\s*$/i);
+  return m ? m[1].toUpperCase() : (s || 'SIN DATO');
+}
+
+function parseStockWorkbook(wb){
+  const sheet = getSheet(wb, 'Data');
+  if(!sheet) throw new Error('No se encontró la pestaña "Data".');
+  const rows = XLSX.utils.sheet_to_json(sheet, {defval:null});
+  const out = [];
+  rows.forEach(r=>{
+    const u = String(getCol(r,'Ubicación') ?? '').trim();
+    if(!u) return;
+    const ctd = parseNumber(getCol(r,'Ctd.'));
+    const producto = normalizeProducto(getCol(r,'Producto'));
+    const descripcionProducto = String(getCol(r,'Descripción producto') ?? '').trim();
+    const unidadMedida = String(getCol(r,'Unidad medida base') ?? '').trim() || 'SIN UM';
+    const tipoAlmacenStock = String(getCol(r,'Tipo almacén') ?? '').trim();
+    const unidadManipulacion = String(getCol(r,'Unidad manipulación') ?? '').trim();
+    const lote = String(getCol(r,'Lote') ?? '').trim();
+    const feCaduc = formatCellDate(getCol(r,'FeCaduc/FePreferCons'));
+    const fechaEMraw = getCol(r,'Fecha EM');
+    const fechaEMDate = (fechaEMraw instanceof Date && !isNaN(fechaEMraw)) ? fechaEMraw : null;
+    const fechaEM = formatCellDate(fechaEMraw);
+    const tipoStock = String(getCol(r,'Tipo de stock') ?? '').trim().toUpperCase();
+    const denominTipoStock = String(getCol(r,'Denomin.tipo stocks') ?? '').trim();
+    const almacenSigla = extractAlmacenSigla(denominTipoStock);
+    out.push({ ubicacion:u, ctd, producto, descripcionProducto, unidadMedida, tipoAlmacenStock, unidadManipulacion, lote, feCaduc, fechaEM, fechaEMDate, tipoStock, denominTipoStock, almacenSigla });
+  });
+  return out;
+}
+
+/* ---------------- Stock MM (fuente adicional, sin ubicaciones — solo alimenta Inventario) ---------------- */
+function parseStockMMWorkbook(wb){
+  const sheet = getSheet(wb, 'Data') || wb.Sheets[wb.SheetNames[0]];
+  if(!sheet) throw new Error('No se encontró una pestaña de datos en el archivo.');
+  const rows = XLSX.utils.sheet_to_json(sheet, {defval:null});
+  const out = [];
+  rows.forEach(r=>{
+    const material = normalizeProducto(getCol(r,'Material'));
+    if(!material) return;
+    const almacen = String(getCol(r,'Almacén') ?? '').trim();
+    const centro = String(getCol(r,'Centro') ?? '').trim();
+    const descripcion = String(getCol(r,'Texto breve material') ?? '').trim();
+    const unidadMedida = String(getCol(r,'Unidad medida base') ?? '').trim() || 'SIN UM';
+    const libreUtilizacion = parseNumber(getCol(r,'Libre utilización'));
+    const valorLibreUtil = parseNumber(getCol(r,'Valor libre util.'));
+    const transTraslado = parseNumber(getCol(r,'Trans./Trasl.'));
+    out.push({ material, almacen, centro, descripcion, unidadMedida, libreUtilizacion, valorLibreUtil, transTraslado });
+  });
+  return out;
+}
+
+function computeMMSnapshot(basesData, rows, fileName){
+  const materiales = (basesData && basesData.materiales) || {};
+  const costos = (basesData && basesData.costos) || {};
+  const dt = parseDateFromFilename(fileName) || new Date();
+  const TARGET_ALMACENES_MM = ['EX01','EX02'];
+
+  let totalUnidades = 0, totalMonto = 0;
+  const porMaterial = {}; // tipo -> {unidades, monto} — solo almacenes EX01/EX02
+  const porAlmacen = { EX01:{unidades:0,monto:0}, EX02:{unidades:0,monto:0} };
+  let transitoUnidades = 0, transitoMonto = 0;
+  const transitoPorMaterial = {}; // tipo -> {unidades, monto} — Trans./Trasl. en filas sin almacén, costeado por "costos"
+  let excludedLI = 0;
+  let otrosAlmacenes = 0;
+  let pt01UnidadesMM = 0, pt01MontoMM = 0;
+  const noClusterMapMM = new Map(); // material -> {descripcion, unidades}
+  const sinCostoMapMM = new Map(); // material -> {descripcion, unidades}
+
+  rows.forEach(r=>{
+    const alm = (r.almacen || '').toUpperCase();
+    if(alm.startsWith('LI')){ excludedLI++; return; }
+    const clasificado = materiales[r.material];
+    const tipo = clasificado || 'No Clusterizados';
+    const costoUnit = costos[r.material];
+
+    if(!clasificado && r.material){
+      if(!noClusterMapMM.has(r.material)) noClusterMapMM.set(r.material, {descripcion:r.descripcion||'', unidades:0});
+      const nc = noClusterMapMM.get(r.material);
+      nc.unidades += (r.libreUtilizacion || r.transTraslado || 0);
+      if(!nc.descripcion && r.descripcion) nc.descripcion = r.descripcion;
+    }
+    if(!costoUnit && r.material && !alm.startsWith('LI')){
+      if(!sinCostoMapMM.has(r.material)) sinCostoMapMM.set(r.material, {descripcion:r.descripcion||'', unidades:0});
+      const sc = sinCostoMapMM.get(r.material);
+      sc.unidades += (r.libreUtilizacion || r.transTraslado || 0);
+      if(!sc.descripcion && r.descripcion) sc.descripcion = r.descripcion;
+    }
+
+    if(alm === 'PT01'){ pt01UnidadesMM += r.libreUtilizacion; pt01MontoMM += r.valorLibreUtil; }
+
+    if(!r.almacen){
+      const transMonto = costoUnit ? r.transTraslado * costoUnit : 0;
+      transitoUnidades += r.transTraslado;
+      transitoMonto += transMonto;
+      if(!transitoPorMaterial[tipo]) transitoPorMaterial[tipo] = {unidades:0, monto:0};
+      transitoPorMaterial[tipo].unidades += r.transTraslado;
+      transitoPorMaterial[tipo].monto += transMonto;
+      return;
+    }
+    if(TARGET_ALMACENES_MM.includes(alm)){
+      totalUnidades += r.libreUtilizacion;
+      totalMonto += r.valorLibreUtil;
+      if(!porMaterial[tipo]) porMaterial[tipo] = {unidades:0, monto:0};
+      porMaterial[tipo].unidades += r.libreUtilizacion;
+      porMaterial[tipo].monto += r.valorLibreUtil;
+      porAlmacen[alm].unidades += r.libreUtilizacion;
+      porAlmacen[alm].monto += r.valorLibreUtil;
+    } else {
+      otrosAlmacenes++;
+    }
+  });
+
+  const noClusterizados = Array.from(noClusterMapMM.entries())
+    .map(([producto,v])=>({ producto, descripcion:v.descripcion, unidades:v.unidades }))
+    .sort((a,b)=> b.unidades - a.unidades);
+  const sinCosto = Array.from(sinCostoMapMM.entries())
+    .map(([producto,v])=>({ producto, descripcion:v.descripcion, unidades:v.unidades }))
+    .sort((a,b)=> b.unidades - a.unidades);
+
+  return {
+    id: fileName,
+    fileName,
+    fecha: dt.toISOString(),
+    totalUnidades,
+    totalMonto,
+    porAlmacen,
+    pt01Mm: { unidades: pt01UnidadesMM, monto: pt01MontoMM },
+    porMaterial: Object.entries(porMaterial).map(([tipo,v])=>({ tipo, unidades:v.unidades, monto:v.monto })).sort((a,b)=>b.unidades-a.unidades),
+    transito: {
+      unidades: transitoUnidades,
+      monto: transitoMonto,
+      porMaterial: Object.entries(transitoPorMaterial).map(([tipo,v])=>({ tipo, unidades:v.unidades, monto:v.monto })).sort((a,b)=>b.unidades-a.unidades)
+    },
+    excludedLI,
+    otrosAlmacenes,
+    sinCosto,
+    noClusterizados
+  };
+}
+
+/* ---------------- Diferencias de inventario CD COL (Z031=Cajas, Z005=Polines) ---------------- */
+const MESES_ABR_MAP = {ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,set:8,oct:9,nov:10,dic:11};
+function parseSpanishShortDate(str, refDate){
+  const m = String(str).trim().toLowerCase().match(/^(\d{1,2})[\-\/\s]([a-záéíóúñ]{3,})\.?$/);
+  if(!m) return null;
+  const day = parseInt(m[1],10);
+  const mesAbr = m[2].normalize('NFD').replace(/[\u0300-\u036f]/g,'').slice(0,3);
+  const month = MESES_ABR_MAP[mesAbr];
+  if(month===undefined || day<1 || day>31) return null;
+  let year = refDate.getFullYear();
+  let d = new Date(year, month, day);
+  if(d.getTime() - refDate.getTime() > 60*86400000) d = new Date(year-1, month, day);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function parseDiferenciasSheetWide(sheet){
+  if(!sheet) return [];
+  const aoa = XLSX.utils.sheet_to_json(sheet, {header:1, defval:null});
+  if(aoa.length < 2) return [];
+  const headerRow = aoa[0];
+  const today = new Date();
+
+  const normHeader = h => String(h||'').trim().toLowerCase();
+  const colMaterial = headerRow.findIndex(h => normHeader(h) === 'material');
+  const colDescripcion = headerRow.findIndex(h => normHeader(h).includes('descrip'));
+
+  const excelSerialToDate = n => new Date(Math.round((n - 25569) * 86400 * 1000));
+  const dateCols = [];
+  headerRow.forEach((h, idx)=>{
+    if(idx === colMaterial || idx === colDescripcion) return;
+    let fecha = null;
+    if(h instanceof Date) fecha = h;
+    else if(typeof h === 'number' && h > 20000 && h < 60000) fecha = excelSerialToDate(h);
+    else if(typeof h === 'string' && h.trim()){
+      fecha = parseSpanishShortDate(h, today);
+      if(!fecha){
+        const parsed = new Date(h.trim());
+        if(!isNaN(parsed.getTime())) fecha = parsed;
+      }
+    }
+    if(fecha && !isNaN(fecha.getTime())) dateCols.push({ idx, fecha });
+  });
+
+  const rows = [];
+  for(let i=1; i<aoa.length; i++){
+    const row = aoa[i];
+    if(!row) continue;
+    const material = normalizeProducto(colMaterial>=0 ? row[colMaterial] : null);
+    if(!material) continue;
+    const descripcion = colDescripcion>=0 ? String(row[colDescripcion] ?? '').trim() : '';
+    dateCols.forEach(dc=>{
+      let val = row[dc.idx];
+      if(val===null || val===undefined || val==='') return;
+      if(typeof val === 'string' && /^-+$/.test(val.trim())) val = 0;
+      const diferencia = Number(val);
+      if(isNaN(diferencia)) return;
+      rows.push({ material, descripcion, fecha: dc.fecha.toISOString(), diferencia });
+    });
+  }
+  return rows;
+}
+
+function getSheetLoose(wb, code, keywords){
+  const exact = getSheet(wb, code);
+  if(exact) return exact;
+  const codeLower = code.toLowerCase();
+  let found = wb.SheetNames.find(n => n.trim().toLowerCase().startsWith(codeLower));
+  if(found) return wb.Sheets[found];
+  found = wb.SheetNames.find(n => n.trim().toLowerCase().includes(codeLower));
+  if(found) return wb.Sheets[found];
+  if(keywords && keywords.length){
+    found = wb.SheetNames.find(n => keywords.some(k => n.trim().toLowerCase().includes(k)));
+    if(found) return wb.Sheets[found];
+  }
+  return null;
+}
+
+function parseDiferenciasWorkbook(wb){
+  const sheetCajas = getSheetLoose(wb, 'Z031', ['caja']);
+  const sheetPolines = getSheetLoose(wb, 'Z005', ['polin']);
+  const rowsCajas = parseDiferenciasSheetWide(sheetCajas);
+  const rowsPolines = parseDiferenciasSheetWide(sheetPolines);
+  return {
+    cajasEncontrada: !!sheetCajas,
+    polinesEncontrada: !!sheetPolines,
+    sheetNames: wb.SheetNames,
+    rowsCajas, rowsPolines
+  };
+}
+
+function periodKeyDif(fechaISO, granularity){
+  const d = new Date(fechaISO);
+  if(granularity==='mes') return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  if(granularity==='semana') return isoWeekKey(d);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function summarizeDiferenciasPorPeriodo(rows, costos, granularity){
+  const porPeriodo = {}; // key -> {fechaRef, positivas, negativas, cuadradas, sumPosUnid, sumNegUnid, sumAbsUnid, sumPosMonto, sumNegMonto, sumAbsMonto}
+  rows.forEach(r=>{
+    const key = periodKeyDif(r.fecha, granularity);
+    if(!porPeriodo[key]) porPeriodo[key] = {fechaRef:r.fecha, positivas:0, negativas:0, cuadradas:0, sumPosUnid:0, sumNegUnid:0, sumAbsUnid:0, sumPosMonto:0, sumNegMonto:0, sumAbsMonto:0};
+    const d = porPeriodo[key];
+    if(new Date(r.fecha) > new Date(d.fechaRef)) d.fechaRef = r.fecha;
+    const costoUnit = costos[r.material];
+    const montoLinea = costoUnit ? r.diferencia * costoUnit : 0;
+    if(r.diferencia > 0){ d.positivas++; d.sumPosUnid += r.diferencia; d.sumPosMonto += montoLinea; }
+    else if(r.diferencia < 0){ d.negativas++; d.sumNegUnid += r.diferencia; d.sumNegMonto += montoLinea; }
+    else d.cuadradas++;
+    d.sumAbsUnid += Math.abs(r.diferencia);
+    d.sumAbsMonto += Math.abs(montoLinea);
+  });
+  return Object.entries(porPeriodo)
+    .map(([key,v])=>({ key, fecha: v.fechaRef, ...v }))
+    .sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+}
+
+function summarizeDiferenciasPorDia(rows, costos){
+  return summarizeDiferenciasPorPeriodo(rows, costos, 'dia')
+    .sort((a,b)=> new Date(b.fecha) - new Date(a.fecha))
+    .slice(0,6);
+}
+
+function topDiferencias(rows, costos, mode){
+  const withMonto = rows.map(r=>{
+    const costoUnit = costos[r.material];
+    return { ...r, monto: costoUnit ? r.diferencia*costoUnit : 0 };
+  });
+  let sorted;
+  if(mode==='negativos') sorted = [...withMonto].sort((a,b)=> a.diferencia - b.diferencia);
+  else if(mode==='positivos') sorted = [...withMonto].sort((a,b)=> b.diferencia - a.diferencia);
+  else sorted = [...withMonto].sort((a,b)=> Math.abs(b.diferencia) - Math.abs(a.diferencia));
+  return sorted.slice(0,5);
+}
+
+function topDiferenciasAcumulado(rows, costos, mode, ultimosNDias){
+  let scope = rows;
+  if(ultimosNDias){
+    const fechasUnicas = Array.from(new Set(rows.map(r=>r.fecha))).sort((a,b)=> new Date(b)-new Date(a)).slice(0, ultimosNDias);
+    const fechasSet = new Set(fechasUnicas);
+    scope = rows.filter(r=> fechasSet.has(r.fecha));
+  }
+  const porMaterial = {};
+  scope.forEach(r=>{
+    if(!porMaterial[r.material]) porMaterial[r.material] = { material:r.material, descripcion:r.descripcion, diferencia:0, monto:0 };
+    const costoUnit = costos[r.material];
+    porMaterial[r.material].diferencia += r.diferencia;
+    porMaterial[r.material].monto += costoUnit ? r.diferencia*costoUnit : 0;
+    if(!porMaterial[r.material].descripcion && r.descripcion) porMaterial[r.material].descripcion = r.descripcion;
+  });
+  let sorted = Object.values(porMaterial);
+  if(mode==='negativos') sorted.sort((a,b)=> a.diferencia - b.diferencia);
+  else if(mode==='positivos') sorted.sort((a,b)=> b.diferencia - a.diferencia);
+  else sorted.sort((a,b)=> Math.abs(b.diferencia) - Math.abs(a.diferencia));
+  return sorted.slice(0,5);
+}
+
+function summarizeDiferencias(rows, costos){
+  let positivas=0, negativas=0, cuadradas=0;
+  let sumPosUnid=0, sumNegUnid=0, sumAbsUnid=0;
+  let sumPosMonto=0, sumNegMonto=0, sumAbsMonto=0;
+  let sinCosto=0;
+  const fechasSet = new Set();
+  const materialesSet = new Set();
+  rows.forEach(r=>{
+    fechasSet.add(r.fecha);
+    materialesSet.add(r.material);
+    const costoUnit = costos[r.material];
+    if(!costoUnit) sinCosto++;
+    const montoLinea = costoUnit ? r.diferencia * costoUnit : 0;
+    if(r.diferencia > 0){ positivas++; sumPosUnid += r.diferencia; sumPosMonto += montoLinea; }
+    else if(r.diferencia < 0){ negativas++; sumNegUnid += r.diferencia; sumNegMonto += montoLinea; }
+    else cuadradas++;
+    sumAbsUnid += Math.abs(r.diferencia);
+    sumAbsMonto += Math.abs(montoLinea);
+  });
+  return {
+    totalFilas: rows.length,
+    fechasCount: fechasSet.size,
+    materialesCount: materialesSet.size,
+    positivas, negativas, cuadradas,
+    sumPosUnid, sumNegUnid, sumAbsUnid,
+    sumPosMonto, sumNegMonto, sumAbsMonto,
+    sinCosto
+  };
+}
+
+function computeDiferenciasSnapshot(parsed, fileName, costos){
+  const dt = parseDateFromFilename(fileName) || new Date();
+  return {
+    id: fileName,
+    fileName,
+    fecha: dt.toISOString(),
+    cajasEncontrada: parsed.cajasEncontrada,
+    polinesEncontrada: parsed.polinesEncontrada,
+    cajasCount: parsed.rowsCajas.length,
+    polinesCount: parsed.rowsPolines.length,
+    cajas: summarizeDiferencias(parsed.rowsCajas, costos),
+    polines: summarizeDiferencias(parsed.rowsPolines, costos),
+    diasCajas: summarizeDiferenciasPorDia(parsed.rowsCajas, costos),
+    diasPolines: summarizeDiferenciasPorDia(parsed.rowsPolines, costos),
+    tendenciaCajas: {
+      dia: summarizeDiferenciasPorPeriodo(parsed.rowsCajas, costos, 'dia').slice(-8),
+      semana: summarizeDiferenciasPorPeriodo(parsed.rowsCajas, costos, 'semana').slice(-8),
+      mes: summarizeDiferenciasPorPeriodo(parsed.rowsCajas, costos, 'mes').slice(-12)
+    },
+    tendenciaPolines: {
+      dia: summarizeDiferenciasPorPeriodo(parsed.rowsPolines, costos, 'dia').slice(-8),
+      semana: summarizeDiferenciasPorPeriodo(parsed.rowsPolines, costos, 'semana').slice(-8),
+      mes: summarizeDiferenciasPorPeriodo(parsed.rowsPolines, costos, 'mes').slice(-12)
+    },
+    top5NegCajas: topDiferencias(parsed.rowsCajas, costos, 'negativos'),
+    top5PosCajas: topDiferencias(parsed.rowsCajas, costos, 'positivos'),
+    top5AbsCajas: topDiferencias(parsed.rowsCajas, costos, 'absolutos'),
+    top5NegPolines: topDiferencias(parsed.rowsPolines, costos, 'negativos'),
+    top5PosPolines: topDiferencias(parsed.rowsPolines, costos, 'positivos'),
+    top5AbsPolines: topDiferencias(parsed.rowsPolines, costos, 'absolutos'),
+    rowsCajas: parsed.rowsCajas,
+    rowsPolines: parsed.rowsPolines
+  };
+}
+
+function parseDateFromFilename(name){
+  const m = name.match(/(\d{8})_(\d{6})/);
+  if(!m) return null;
+  const d = m[1], t = m[2];
+  const yyyy = +d.slice(0,4), mm = +d.slice(4,6)-1, dd = +d.slice(6,8);
+  const hh = +t.slice(0,2), mi = +t.slice(2,4), ss = +t.slice(4,6);
+  const dt = new Date(yyyy, mm, dd, hh, mi, ss);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+function computeSnapshot(basesData, stockRows, fileName){
+  const dt = parseDateFromFilename(fileName) || new Date();
+  const locSet = new Set(basesData.locations.map(l=>l.ubicacion));
+  const locZonaMap = new Map(basesData.locations.map(l=>[l.ubicacion, l.zonaCD]));
+  const locUsoMap = new Map(basesData.locations.map(l=>[l.ubicacion, l.uso]));
+  const materiales = basesData.materiales || {};
+  const modulaciones = basesData.modulaciones || {};
+  const costos = basesData.costos || {};
+  const matchedSet = new Set();
+  const unmatchedMap = new Map();
+  let unidadesOcupadas = 0;
+  const unidadesPorMedida = {};
+  const ubicacionProductoCtd = {}; // ubicacion -> {producto: ctd, ...} — solo USO=ALMACENAJE
+
+  const materialLocSets = {};
+  const materialUnidades = {};
+  const noClusterMap = new Map(); // producto -> {descripcion, ubicaciones:Set, unidades}
+  const NO_CLUSTER_LABEL = 'No Clusterizados';
+
+  const unmatchedRawRows = [];
+  stockRows.forEach(r=>{
+    if(locSet.has(r.ubicacion)){
+      matchedSet.add(r.ubicacion);
+      unidadesOcupadas += r.ctd;
+      unidadesPorMedida[r.unidadMedida] = (unidadesPorMedida[r.unidadMedida]||0) + r.ctd;
+
+      if(locUsoMap.get(r.ubicacion) === 'ALMACENAJE'){
+        if(!ubicacionProductoCtd[r.ubicacion]) ubicacionProductoCtd[r.ubicacion] = {};
+        ubicacionProductoCtd[r.ubicacion][r.producto] = (ubicacionProductoCtd[r.ubicacion][r.producto] || 0) + r.ctd;
+      }
+
+      const zonaCD = locZonaMap.get(r.ubicacion) || '';
+      const clasificado = materiales[r.producto];
+      const tipoMaterial = clasificado || NO_CLUSTER_LABEL;
+      const mKey = zonaCD + '|' + tipoMaterial;
+      if(!materialLocSets[mKey]) materialLocSets[mKey] = new Set();
+      materialLocSets[mKey].add(r.ubicacion);
+      materialUnidades[mKey] = (materialUnidades[mKey]||0) + r.ctd;
+
+      if(!clasificado && r.producto){
+        if(!noClusterMap.has(r.producto)) noClusterMap.set(r.producto, {descripcion:r.descripcionProducto||'', ubicaciones:new Set(), unidades:0});
+        const nc = noClusterMap.get(r.producto);
+        nc.ubicaciones.add(r.ubicacion);
+        nc.unidades += r.ctd;
+        if(!nc.descripcion && r.descripcionProducto) nc.descripcion = r.descripcionProducto;
+      }
+    } else {
+      if(!unmatchedMap.has(r.ubicacion)) unmatchedMap.set(r.ubicacion, {ctdTotal:0, montoTotal:0, skus:new Set(), porTipo:{}, porTipoMonto:{}});
+      const entry = unmatchedMap.get(r.ubicacion);
+      const costoUnitUnm = costos[r.producto];
+      const montoUnm = costoUnitUnm ? r.ctd * costoUnitUnm : 0;
+      entry.ctdTotal += r.ctd;
+      entry.montoTotal += montoUnm;
+      if(r.producto) entry.skus.add(r.producto);
+      const clasificado = materiales[r.producto];
+      const tipoMaterial = clasificado || NO_CLUSTER_LABEL;
+      entry.porTipo[tipoMaterial] = (entry.porTipo[tipoMaterial]||0) + r.ctd;
+      entry.porTipoMonto[tipoMaterial] = (entry.porTipoMonto[tipoMaterial]||0) + montoUnm;
+
+      unmatchedRawRows.push({
+        tipoAlmacen: r.tipoAlmacenStock, ubicacion: r.ubicacion, producto: r.producto,
+        descripcionProducto: r.descripcionProducto, unidadManipulacion: r.unidadManipulacion,
+        unidadMedida: r.unidadMedida, ctd: r.ctd, lote: r.lote, feCaduc: r.feCaduc, fechaEM: r.fechaEM
+      });
+
+      if(!clasificado && r.producto){
+        if(!noClusterMap.has(r.producto)) noClusterMap.set(r.producto, {descripcion:r.descripcionProducto||'', ubicaciones:new Set(), unidades:0});
+        const nc = noClusterMap.get(r.producto);
+        nc.ubicaciones.add(r.ubicacion);
+        nc.unidades += r.ctd;
+        if(!nc.descripcion && r.descripcionProducto) nc.descripcion = r.descripcionProducto;
+      }
+    }
+  });
+
+  const noClusterizados = Array.from(noClusterMap.entries())
+    .map(([producto,v])=>({ producto, descripcion:v.descripcion, ubicaciones:v.ubicaciones.size, unidades:v.unidades }))
+    .sort((a,b)=> b.ubicaciones - a.ubicaciones);
+
+  // Bloqueos de calidad (Tipo de stock = Q1/Q2/Q3) — desglosado por almacén (sigla de Denomin.tipo stocks)
+  const qLocSet = new Set();
+  const qByAlmacen = {}; // sigla -> {ubicaciones:Set, unidades}
+  const qByMaterial = {}; // tipoMaterial -> Set of ubicaciones
+  const qRawRows = [];
+
+  // Stock inmovilizado — Fecha EM con más de 6 meses de antigüedad, solo zonas Z001/Z002/Z003
+  const TARGET_ZONAS_INMO = ['Z001','Z002','Z003'];
+  const cutoffDate = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  cutoffDate.setMonth(cutoffDate.getMonth() - 6);
+  const inmoLocSet = new Set();
+  let inmoUnidades = 0;
+  let inmoMonto = 0;
+  const inmoRawRows = [];
+  const inmoByMaterial = {}; // tipoMaterial -> {ubicaciones:Set, unidades, monto}
+  const inmoByProducto = {}; // producto -> {descripcion, unidades, monto, ubicaciones:Set, oldestDate}
+
+  stockRows.forEach(r=>{
+    if(r.tipoStock && r.tipoStock.startsWith('Q')){
+      qLocSet.add(r.ubicacion);
+      const sigla = r.almacenSigla || 'SIN DATO';
+      if(!qByAlmacen[sigla]) qByAlmacen[sigla] = {ubicaciones:new Set(), unidades:0};
+      qByAlmacen[sigla].ubicaciones.add(r.ubicacion);
+      qByAlmacen[sigla].unidades += r.ctd;
+
+      const tipoMaterialQ = materiales[r.producto] || 'No Clusterizados';
+      if(!qByMaterial[tipoMaterialQ]) qByMaterial[tipoMaterialQ] = new Set();
+      qByMaterial[tipoMaterialQ].add(r.ubicacion);
+
+      qRawRows.push({
+        ubicacion: r.ubicacion, tipoMaterial: tipoMaterialQ,
+        producto: r.producto, descripcionProducto: r.descripcionProducto, lote: r.lote,
+        feCaduc: r.feCaduc, fechaEM: r.fechaEM, ctd: r.ctd, unidadManipulacion: r.unidadManipulacion
+      });
+    }
+    if(r.fechaEMDate && r.fechaEMDate < cutoffDate){
+      const zonaCD = locZonaMap.get(r.ubicacion) || 'SIN ZONA';
+      if(!TARGET_ZONAS_INMO.includes(zonaCD)) return;
+      const costoUnitInmo = costos[r.producto];
+      const montoLinea = costoUnitInmo ? r.ctd * costoUnitInmo : 0;
+      inmoLocSet.add(r.ubicacion);
+      inmoUnidades += r.ctd;
+      inmoMonto += montoLinea;
+
+      const tipoMaterialInmo = materiales[r.producto] || 'No Clusterizados';
+      if(!inmoByMaterial[tipoMaterialInmo]) inmoByMaterial[tipoMaterialInmo] = {ubicaciones:new Set(), unidades:0, monto:0};
+      inmoByMaterial[tipoMaterialInmo].ubicaciones.add(r.ubicacion);
+      inmoByMaterial[tipoMaterialInmo].unidades += r.ctd;
+      inmoByMaterial[tipoMaterialInmo].monto += montoLinea;
+
+      if(r.producto){
+        if(!inmoByProducto[r.producto]) inmoByProducto[r.producto] = { descripcion: r.descripcionProducto||'', tipo: tipoMaterialInmo, unidades:0, monto:0, ubicaciones:new Set(), oldestDate: r.fechaEMDate };
+        const pEntry = inmoByProducto[r.producto];
+        pEntry.unidades += r.ctd;
+        pEntry.monto += montoLinea;
+        pEntry.ubicaciones.add(r.ubicacion);
+        if(!pEntry.descripcion && r.descripcionProducto) pEntry.descripcion = r.descripcionProducto;
+        if(r.fechaEMDate < pEntry.oldestDate) pEntry.oldestDate = r.fechaEMDate;
+      }
+
+      inmoRawRows.push({
+        ubicacion: r.ubicacion, tipoAlmacenStock: r.tipoAlmacenStock,
+        producto: r.producto, tipoMaterial: tipoMaterialInmo, descripcionProducto: r.descripcionProducto, lote: r.lote,
+        feCaduc: r.feCaduc, fechaEM: r.fechaEM, ctd: r.ctd, unidadManipulacion: r.unidadManipulacion
+      });
+    }
+  });
+
+  const bloqueoCalidad = {
+    totalUbicaciones: qLocSet.size,
+    porAlmacen: Object.entries(qByAlmacen)
+      .map(([sigla,v])=>({ sigla, ubicaciones: v.ubicaciones.size, unidades: v.unidades }))
+      .sort((a,b)=> b.ubicaciones - a.ubicaciones),
+    porMaterial: Object.entries(qByMaterial)
+      .map(([tipo,set])=>({ tipo, ubicaciones: set.size }))
+      .sort((a,b)=> b.ubicaciones - a.ubicaciones)
+  };
+
+  const inmoPorMaterialFull = Object.entries(inmoByMaterial)
+    .map(([tipo,v])=>({ tipo, ubicaciones: v.ubicaciones.size, unidades: v.unidades, monto: v.monto }));
+
+  const inmoProductosFull = Object.entries(inmoByProducto)
+    .map(([producto,v])=>({
+      producto, descripcion: v.descripcion, tipo: v.tipo,
+      unidades: v.unidades, monto: v.monto, ubicaciones: v.ubicaciones.size,
+      oldestDateLabel: v.oldestDate.toLocaleDateString('es-CL'),
+      diasEstacionado: Math.floor((dt - v.oldestDate) / 86400000)
+    }));
+
+  const estacionalidadPorTipo = {};
+  inmoProductosFull.forEach(p=>{
+    if(!estacionalidadPorTipo[p.tipo]) estacionalidadPorTipo[p.tipo] = [];
+    estacionalidadPorTipo[p.tipo].push(p);
+  });
+  Object.keys(estacionalidadPorTipo).forEach(tipo=>{
+    estacionalidadPorTipo[tipo].sort((a,b)=> b.monto - a.monto);
+  });
+
+  const inmovilizado = {
+    umbralMeses: 6,
+    zonasConsideradas: TARGET_ZONAS_INMO,
+    ubicaciones: inmoLocSet.size,
+    unidades: inmoUnidades,
+    monto: inmoMonto,
+    pctCapacidadCD: basesData.locations.length ? inmoLocSet.size / basesData.locations.length * 100 : 0,
+    porMaterial: [...inmoPorMaterialFull].sort((a,b)=> b.ubicaciones - a.ubicaciones),
+    top5Estacionalidad: [...inmoProductosFull]
+      .sort((a,b)=> b.diasEstacionado - a.diasEstacionado)
+      .slice(0,5)
+      .sort((a,b)=> b.monto - a.monto),
+    estacionalidadPorTipo,
+    rawRows: inmoRawRows
+  };
+
+  // Inventario / valorización — usa TODAS las filas de stock (incluye ubicaciones virtuales como DIF DE INVENTARIO)
+  let invTotalUnidades = 0;
+  let invTotalCosto = 0;
+  let invSinCostoUnidades = 0;
+  const invByMaterial = {}; // tipo -> {unidades, costo}
+  const invPorMedida = {}; // unidadMedida -> {unidades, monto}
+  const sinCostoMapEWM = new Map(); // producto -> {descripcion, unidades}
+  const SPECIAL_LOCS = {
+    'DIF DE INVENTARIO': 'perdida',
+    'GI-ZONE': 'giZone',
+    'GR-ZONE': 'grZone'
+  };
+  const specialPorMedida = { perdida:{}, giZone:{}, grZone:{} }; // -> {um: {unidades, monto}}
+  const specialPorMaterial = { perdida:{}, giZone:{}, grZone:{} }; // -> {tipo: {unidades, monto}}
+  const specialTotales = { perdida:{unidades:0,monto:0}, giZone:{unidades:0,monto:0}, grZone:{unidades:0,monto:0} };
+  const perdidaPorProducto = {}; // producto -> {descripcion, tipo, unidades, monto}
+  let pt01UnidadesEWM = 0, pt01MontoEWM = 0;
+
+  stockRows.forEach(r=>{
+    invTotalUnidades += r.ctd;
+    const tipo = materiales[r.producto] || 'No Clusterizados';
+    const costoUnit = costos[r.producto];
+    const costoLinea = costoUnit ? r.ctd * costoUnit : 0;
+    invTotalCosto += costoLinea;
+    if(r.almacenSigla === 'PT01'){ pt01UnidadesEWM += r.ctd; pt01MontoEWM += costoLinea; }
+    if(!costoUnit){
+      invSinCostoUnidades += r.ctd;
+      if(r.producto){
+        if(!sinCostoMapEWM.has(r.producto)) sinCostoMapEWM.set(r.producto, {descripcion:r.descripcionProducto||'', unidades:0});
+        const sc = sinCostoMapEWM.get(r.producto);
+        sc.unidades += r.ctd;
+        if(!sc.descripcion && r.descripcionProducto) sc.descripcion = r.descripcionProducto;
+      }
+    }
+
+    if(!invPorMedida[r.unidadMedida]) invPorMedida[r.unidadMedida] = {unidades:0, monto:0};
+    invPorMedida[r.unidadMedida].unidades += r.ctd;
+    invPorMedida[r.unidadMedida].monto += costoLinea;
+
+    if(!invByMaterial[tipo]) invByMaterial[tipo] = {unidades:0, costo:0};
+    invByMaterial[tipo].unidades += r.ctd;
+    invByMaterial[tipo].costo += costoLinea;
+
+    const specialKey = SPECIAL_LOCS[r.ubicacion];
+    if(specialKey){
+      if(!specialPorMedida[specialKey][r.unidadMedida]) specialPorMedida[specialKey][r.unidadMedida] = {unidades:0, monto:0};
+      specialPorMedida[specialKey][r.unidadMedida].unidades += r.ctd;
+      specialPorMedida[specialKey][r.unidadMedida].monto += costoLinea;
+
+      if(!specialPorMaterial[specialKey][tipo]) specialPorMaterial[specialKey][tipo] = {unidades:0, monto:0};
+      specialPorMaterial[specialKey][tipo].unidades += r.ctd;
+      specialPorMaterial[specialKey][tipo].monto += costoLinea;
+
+      specialTotales[specialKey].unidades += r.ctd;
+      specialTotales[specialKey].monto += costoLinea;
+
+      if(specialKey === 'perdida' && r.producto){
+        if(!perdidaPorProducto[r.producto]) perdidaPorProducto[r.producto] = { descripcion: r.descripcionProducto||'', tipo, unidades:0, monto:0 };
+        const pp = perdidaPorProducto[r.producto];
+        pp.unidades += r.ctd;
+        pp.monto += costoLinea;
+        if(!pp.descripcion && r.descripcionProducto) pp.descripcion = r.descripcionProducto;
+      }
+    }
+  });
+
+  const perdidaProductosFull = Object.entries(perdidaPorProducto)
+    .map(([producto,v])=>({ producto, descripcion: v.descripcion, tipo: v.tipo, unidades: v.unidades, monto: v.monto }));
+  const top5Perdida = [...perdidaProductosFull].sort((a,b)=> b.monto - a.monto).slice(0,5);
+  const perdidaPorTipoLista = {};
+  perdidaProductosFull.forEach(p=>{
+    if(!perdidaPorTipoLista[p.tipo]) perdidaPorTipoLista[p.tipo] = [];
+    perdidaPorTipoLista[p.tipo].push(p);
+  });
+  Object.keys(perdidaPorTipoLista).forEach(tipo=> perdidaPorTipoLista[tipo].sort((a,b)=> b.monto - a.monto));
+
+  function buildSpecialBlock(key){
+    return {
+      porMedida: Object.entries(specialPorMedida[key]).map(([um,v])=>({ um, unidades:v.unidades, monto:v.monto })).sort((a,b)=>b.unidades-a.unidades),
+      porMaterial: Object.entries(specialPorMaterial[key]).map(([tipo,v])=>({ tipo, unidades:v.unidades, monto:v.monto })).sort((a,b)=>b.unidades-a.unidades),
+      totalUnidades: specialTotales[key].unidades,
+      totalMonto: specialTotales[key].monto,
+      pctSobreTotal: invTotalCosto ? (specialTotales[key].monto/invTotalCosto*100) : 0,
+      top5: key==='perdida' ? top5Perdida : undefined,
+      porTipoLista: key==='perdida' ? perdidaPorTipoLista : undefined
+    };
+  }
+
+  const inventario = {
+    totalUnidades: invTotalUnidades,
+    totalCosto: invTotalCosto,
+    sinCostoUnidades: invSinCostoUnidades,
+    pt01Ewm: { unidades: pt01UnidadesEWM, monto: pt01MontoEWM },
+    sinCosto: Array.from(sinCostoMapEWM.entries())
+      .map(([producto,v])=>({ producto, descripcion:v.descripcion, unidades:v.unidades }))
+      .sort((a,b)=> b.unidades - a.unidades),
+    porMedida: Object.entries(invPorMedida)
+      .map(([um,v])=>({ um, unidades: v.unidades, monto: v.monto }))
+      .sort((a,b)=> b.unidades - a.unidades),
+    porMaterial: Object.entries(invByMaterial)
+      .map(([tipo,v])=>({ tipo, unidades: v.unidades, costo: v.costo }))
+      .sort((a,b)=> b.costo - a.costo),
+    perdida: buildSpecialBlock('perdida'),
+    giZone: buildSpecialBlock('giZone'),
+    grZone: buildSpecialBlock('grZone'),
+    difInventario: { unidades: specialTotales.perdida.unidades, costo: specialTotales.perdida.monto }
+  };
+
+  const materialStats = {};
+  Object.keys(materialLocSets).forEach(key=>{
+    const idx = key.indexOf('|');
+    const zonaCD = key.slice(0, idx);
+    const tipo = key.slice(idx+1);
+    materialStats[key] = { zonaCD, tipo, ubicaciones: materialLocSets[key].size, unidades: materialUnidades[key] };
+  });
+
+  // Densidad de almacenamiento — % de llenado por ubicación vs. Modulación 1 (producto dominante de esa ubicación)
+  let b86_100 = 0, b66_85 = 0, b1_65 = 0, bSinLlenado = 0;
+  let densidadSinModulacion = 0;
+  let densidadSumaPct = 0;
+  let densidadConDato = 0;
+  const densidadPctBajoMap = new Map(); // ubicacion -> pct, solo para el rango 1–66%
+  Object.entries(ubicacionProductoCtd).forEach(([ubicacion, prodMap])=>{
+    const totalCtdUbic = Object.values(prodMap).reduce((s,v)=>s+v,0);
+    const productoDominante = Object.entries(prodMap).sort((a,b)=> b[1]-a[1])[0][0];
+    const modulacion = modulaciones[productoDominante];
+    if(!modulacion){
+      densidadSinModulacion++;
+      return;
+    }
+    const pct = totalCtdUbic / modulacion * 100;
+    densidadSumaPct += pct;
+    densidadConDato++;
+    if(pct >= 86) b86_100++;
+    else if(pct >= 66) b66_85++;
+    else if(pct >= 1){ b1_65++; densidadPctBajoMap.set(ubicacion, pct); }
+    else bSinLlenado++;
+  });
+
+  const densidadRawRows = [];
+  if(densidadPctBajoMap.size > 0){
+    stockRows.forEach(r=>{
+      if(densidadPctBajoMap.has(r.ubicacion)){
+        densidadRawRows.push({
+          tipoAlmacenStock: r.tipoAlmacenStock, ubicacion: r.ubicacion, producto: r.producto,
+          tipoMaterial: materiales[r.producto] || 'No Clusterizados',
+          descripcionProducto: r.descripcionProducto, unidadManipulacion: r.unidadManipulacion,
+          unidadMedida: r.unidadMedida, ctd: r.ctd, lote: r.lote, feCaduc: r.feCaduc,
+          fechaEM: r.fechaEM, tipoStock: r.tipoStock, denominTipoStock: r.denominTipoStock,
+          pctDensidad: densidadPctBajoMap.get(r.ubicacion)
+        });
+      }
+    });
+  }
+
+  const densidad = {
+    b86_100, b66_85, b1_65, bSinLlenado,
+    sinModulacion: densidadSinModulacion,
+    totalConDato: densidadConDato,
+    pctPromedio: densidadConDato ? densidadSumaPct/densidadConDato : 0,
+    rawRows: densidadRawRows
+  };
+
+  const unmatchedDetail = Array.from(unmatchedMap.entries())
+    .map(([ubicacion, v]) => ({ ubicacion, ctdTotal: v.ctdTotal, montoTotal: v.montoTotal, skuCount: v.skus.size, porTipo: v.porTipo, porTipoMonto: v.porTipoMonto }))
+    .sort((a,b)=> b.ctdTotal - a.ctdTotal);
+  const noEncontradas = unmatchedDetail.length;
+
+  const zonaStats = {};
+  const pasilloStats = {};
+  const tipoStats = {};
+  const porUso = {}; // uso -> {total, ocupadas}
+  let ocupadasAlmacenaje = 0;
+  let totalAlmacenaje = 0;
+  basesData.locations.forEach(loc=>{
+    const uso = loc.uso || 'SIN USO';
+    porUso[uso] = porUso[uso] || {total:0, ocupadas:0};
+    porUso[uso].total++;
+    const estaOcupada = matchedSet.has(loc.ubicacion);
+    if(estaOcupada) porUso[uso].ocupadas++;
+
+    const esAlmacenaje = uso === 'ALMACENAJE';
+    if(esAlmacenaje){
+      totalAlmacenaje++;
+      if(estaOcupada) ocupadasAlmacenaje++;
+
+      zonaStats[loc.zonaCD] = zonaStats[loc.zonaCD] || {total:0, ocupadas:0};
+      zonaStats[loc.zonaCD].total++;
+
+      const pKey = loc.zonaCD + '|' + loc.pasillo;
+      pasilloStats[pKey] = pasilloStats[pKey] || {zonaCD:loc.zonaCD, pasillo:loc.pasillo, total:0, ocupadas:0};
+      pasilloStats[pKey].total++;
+
+      if(estaOcupada){
+        zonaStats[loc.zonaCD].ocupadas++;
+        pasilloStats[pKey].ocupadas++;
+      }
+    }
+
+    const tKey = loc.zonaCD + '|' + loc.tipoAlmacen;
+    tipoStats[tKey] = tipoStats[tKey] || {zonaCD:loc.zonaCD, tipo:loc.tipoAlmacen, total:0, ocupadas:0};
+    tipoStats[tKey].total++;
+    if(estaOcupada) tipoStats[tKey].ocupadas++;
+  });
+
+  const porUsoArr = Object.entries(porUso)
+    .map(([uso,v])=>({ uso, total:v.total, ocupadas:v.ocupadas, pct: v.total ? v.ocupadas/v.total*100 : 0 }))
+    .sort((a,b)=> b.total - a.total);
+
+  return {
+    id: fileName,
+    fileName,
+    fecha: dt.toISOString(),
+    totalUbicaciones: totalAlmacenaje,
+    ocupadas: ocupadasAlmacenaje,
+    pct: totalAlmacenaje ? ocupadasAlmacenaje / totalAlmacenaje : 0,
+    porUso: porUsoArr,
+    unidadesOcupadas,
+    unidadesPorMedida,
+    noEncontradas,
+    unmatchedDetail,
+    unmatchedRawRows,
+    zonaStats,
+    pasilloStats,
+    tipoStats,
+    materialStats,
+    noClusterizados,
+    bloqueoCalidad,
+    bloqueoRawRows: qRawRows,
+    inmovilizado,
+    inventario,
+    densidad
+  };
+}
+
+/* ---------------- aggregation helpers (filter-aware) ---------------- */
+function getPasilloAgg(latest, zona){
+  const map = {};
+  Object.values(latest.pasilloStats).forEach(p=>{
+    if(zona !== 'ALL' && p.zonaCD !== zona) return;
+    map[p.pasillo] = map[p.pasillo] || {total:0, ocupadas:0};
+    map[p.pasillo].total += p.total;
+    map[p.pasillo].ocupadas += p.ocupadas;
+  });
+  return map;
+}
+function getTipoAgg(latest, zona){
+  const map = {};
+  Object.values(latest.tipoStats || {}).forEach(t=>{
+    if(zona !== 'ALL' && t.zonaCD !== zona) return;
+    if(!t.tipo) return;
+    map[t.tipo] = map[t.tipo] || {total:0, ocupadas:0};
+    map[t.tipo].total += t.total;
+    map[t.tipo].ocupadas += t.ocupadas;
+  });
+  return map;
+}
+function getMaterialAgg(latest, zona){
+  const map = {};
+  Object.values(latest.materialStats || {}).forEach(m=>{
+    if(zona !== 'ALL' && m.zonaCD !== zona) return;
+    map[m.tipo] = map[m.tipo] || {ubicaciones:0, unidades:0};
+    map[m.tipo].ubicaciones += m.ubicaciones;
+    map[m.tipo].unidades += m.unidades;
+  });
+  return map;
+}
+function isLegacySnapshot(s){
+  return typeof s.unidadesOcupadas !== 'number' || !s.tipoStats || !s.materialStats || !s.unidadesPorMedida;
+}
+function isLegacyBases(b){
+  return !b || !b.locations || b.locations.length===0 || b.locations[0].tipoAlmacen === undefined;
+}
+function isLegacyMaterial(b){
+  return !b || !b.materiales || Object.keys(b.materiales).length===0;
+}
+function isLegacyCostos(b){
+  return !b || !b.costos || Object.keys(b.costos).length===0;
+}
+
+/* ---------------- modal handling ---------------- */
+function openModal(which){
+  document.getElementById('overlay'+cap(which)).classList.add('show');
+  if(which==='bases') renderBasesInfo();
+}
+function closeModal(which){
+  document.getElementById('overlay'+cap(which)).classList.remove('show');
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+function renderBasesInfo(){
+  const el = document.getElementById('basesInfo');
+  if(bases){
+    el.innerHTML = `Cargado: <strong style="color:var(--text)">${bases.fileName}</strong> · ${bases.locations.length.toLocaleString('es-CL')} ubicaciones · ${new Date(bases.uploadedAt).toLocaleString('es-CL', {hour12:false})}`;
+  } else {
+    el.innerHTML = 'Aún no se ha cargado la base de posiciones.';
+  }
+}
+
+/* file input wiring */
+document.getElementById('fileBases').addEventListener('change', e=> handleBasesFiles(e.target.files));
+document.getElementById('fileStock').addEventListener('change', e=> handleStockFiles(e.target.files));
+document.getElementById('fileStockMM').addEventListener('change', e=> handleStockMMFiles(e.target.files));
+document.getElementById('fileDifInv').addEventListener('change', e=> handleDifInvFiles(e.target.files));
+
+['dropBases'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', e=>{e.preventDefault(); el.classList.add('drag');});
+  el.addEventListener('dragleave', ()=> el.classList.remove('drag'));
+  el.addEventListener('drop', e=>{
+    e.preventDefault(); el.classList.remove('drag');
+    handleBasesFiles(e.dataTransfer.files);
+  });
+});
+['dropStock'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', e=>{e.preventDefault(); el.classList.add('drag');});
+  el.addEventListener('dragleave', ()=> el.classList.remove('drag'));
+  el.addEventListener('drop', e=>{
+    e.preventDefault(); el.classList.remove('drag');
+    handleStockFiles(e.dataTransfer.files);
+  });
+});
+['dropStockMM'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', e=>{e.preventDefault(); el.classList.add('drag');});
+  el.addEventListener('dragleave', ()=> el.classList.remove('drag'));
+  el.addEventListener('drop', e=>{
+    e.preventDefault(); el.classList.remove('drag');
+    handleStockMMFiles(e.dataTransfer.files);
+  });
+});
+['dropDifInv'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', e=>{e.preventDefault(); el.classList.add('drag');});
+  el.addEventListener('dragleave', ()=> el.classList.remove('drag'));
+  el.addEventListener('drop', e=>{
+    e.preventDefault(); el.classList.remove('drag');
+    handleDifInvFiles(e.dataTransfer.files);
+  });
+});
+
+async function handleBasesFiles(fileList){
+  const file = fileList[0];
+  if(!file) return;
+  const statusEl = document.getElementById('basesStatus');
+  statusEl.innerHTML = `<div class="status-msg ok">Procesando ${file.name}…</div>`;
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
+    const parsed = parseBasesWorkbook(wb);
+    if(parsed.locations.length === 0) throw new Error('El archivo no tiene ubicaciones válidas.');
+    bases = { locations: parsed.locations, zonas: parsed.zonas, materiales: parsed.materiales, costos: parsed.costos, modulaciones: parsed.modulaciones, fileName: file.name, uploadedAt: Date.now() };
+    const saved = await setStore('bases-config', bases);
+    if(!saved) throw new Error('El archivo se procesó pero no se pudo guardar (falló el almacenamiento). Intenta de nuevo.');
+    statusEl.innerHTML = `<div class="status-msg ok">✓ ${parsed.locations.length.toLocaleString('es-CL')} ubicaciones cargadas correctamente.</div>`;
+    renderBasesInfo();
+    updateHeaderPills();
+    renderApp();
+  }catch(err){
+    statusEl.innerHTML = `<div class="status-msg err">Error: ${err.message}</div>`;
+  }
+}
+
+async function handleStockFiles(fileList){
+  const files = Array.from(fileList);
+  if(files.length === 0) return;
+  if(!bases){
+    document.getElementById('stockStatus').innerHTML = `<div class="status-msg err">Primero carga la base de posiciones.</div>`;
+    return;
+  }
+  const statusEl = document.getElementById('stockStatus');
+  const listEl = document.getElementById('stockFileList');
+  listEl.innerHTML = '';
+  let okCount = 0, errCount = 0;
+
+  for(const file of files){
+    const row = document.createElement('div');
+    row.textContent = file.name;
+    listEl.appendChild(row);
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array', cellDates:true});
+      const stockRows = parseStockWorkbook(wb);
+      const snap = computeSnapshot(bases, stockRows, file.name);
+      snapshots = snapshots.filter(s => s.id !== snap.id);
+      snapshots.push(snap);
+      okCount++;
+      row.innerHTML += ` <span style="color:var(--good)">✓ ${(snap.pct*100).toFixed(1)}%</span>`;
+    }catch(err){
+      errCount++;
+      row.innerHTML += ` <span style="color:var(--warn)">✗ ${err.message}</span>`;
+    }
+  }
+  snapshots.sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  const saved = await setStore('stock-snapshots', slimSnapshotsForStorage(snapshots));
+  if(!saved){
+    statusEl.innerHTML = `<div class="status-msg err">Los cortes se procesaron pero no se pudieron guardar (falló el almacenamiento). Intenta de nuevo en unos segundos.</div>`;
+    updateHeaderPills();
+    renderApp();
+    return;
+  }
+  statusEl.innerHTML = `<div class="status-msg ${errCount? 'err':'ok'}">${okCount} corte(s) procesado(s)${errCount? ', '+errCount+' con error':''}.</div>`;
+  updateHeaderPills();
+  renderApp();
+}
+
+async function handleStockMMFiles(fileList){
+  const files = Array.from(fileList);
+  if(files.length === 0) return;
+  const statusEl = document.getElementById('stockMMStatus');
+  const listEl = document.getElementById('stockMMFileList');
+  listEl.innerHTML = '';
+  let okCount = 0, errCount = 0;
+
+  for(const file of files){
+    const row = document.createElement('div');
+    row.textContent = file.name;
+    listEl.appendChild(row);
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array', cellDates:true});
+      const rows = parseStockMMWorkbook(wb);
+      const snap = computeMMSnapshot(bases, rows, file.name);
+      mmSnapshots = mmSnapshots.filter(s => s.id !== snap.id);
+      mmSnapshots.push(snap);
+      okCount++;
+      row.innerHTML += ` <span style="color:var(--good)">✓ ${Math.round(snap.totalUnidades).toLocaleString('es-CL')} unid.</span>`;
+    }catch(err){
+      errCount++;
+      row.innerHTML += ` <span style="color:var(--warn)">✗ ${err.message}</span>`;
+    }
+  }
+  mmSnapshots.sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  const saved = await setStore('mm-stock-snapshots', slimMMSnapshotsForStorage(mmSnapshots));
+  if(!saved){
+    statusEl.innerHTML = `<div class="status-msg err">Los cortes se procesaron pero no se pudieron guardar (falló el almacenamiento). Intenta de nuevo en unos segundos.</div>`;
+    renderApp();
+    return;
+  }
+  statusEl.innerHTML = `<div class="status-msg ${errCount? 'err':'ok'}">${okCount} corte(s) MM procesado(s)${errCount? ', '+errCount+' con error':''}.</div>`;
+  renderApp();
+}
+async function deleteMMSnapshot(id){
+  const backup = mmSnapshots;
+  const next = mmSnapshots.filter(s=>s.id!==id);
+  mmSnapshots = next;
+  renderApp();
+  const result = await setStore('mm-stock-snapshots', slimMMSnapshotsForStorage(next));
+  if(!result){
+    mmSnapshots = backup;
+    renderApp();
+    showToast('No se pudo eliminar el corte MM: falló el guardado. Intenta de nuevo.', 'err');
+    return;
+  }
+  showToast('Corte MM eliminado correctamente.', 'ok');
+}
+window.deleteMMSnapshot = deleteMMSnapshot;
+let confirmClearMM = false;
+function requestClearMM(){
+  confirmClearMM = true;
+  renderApp();
+}
+window.requestClearMM = requestClearMM;
+function cancelClearMM(){
+  confirmClearMM = false;
+  renderApp();
+}
+window.cancelClearMM = cancelClearMM;
+async function clearAllMMSnapshots(){
+  confirmClearMM = false;
+  const backup = mmSnapshots;
+  mmSnapshots = [];
+  renderApp();
+  const result = await setStore('mm-stock-snapshots', []);
+  if(!result){
+    mmSnapshots = backup;
+    renderApp();
+    showToast('No se pudo vaciar el historial MM: falló el guardado. Intenta de nuevo.', 'err');
+    return;
+  }
+  showToast('Historial MM vaciado correctamente.', 'ok');
+}
+window.clearAllMMSnapshots = clearAllMMSnapshots;
+
+async function handleDifInvFiles(fileList){
+  const files = Array.from(fileList);
+  if(files.length === 0) return;
+  const statusEl = document.getElementById('difInvStatus');
+  const listEl = document.getElementById('difInvFileList');
+  listEl.innerHTML = '';
+  let okCount = 0, errCount = 0;
+
+  for(const file of files){
+    const row = document.createElement('div');
+    row.textContent = file.name;
+    listEl.appendChild(row);
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array', cellDates:true});
+      const parsed = parseDiferenciasWorkbook(wb);
+      if(!parsed.cajasEncontrada && !parsed.polinesEncontrada){
+        throw new Error(`No se encontraron pestañas de Cajas/Polines. Pestañas del archivo: ${parsed.sheetNames.join(', ')}`);
+      }
+      const snap = computeDiferenciasSnapshot(parsed, file.name, (bases && bases.costos) || {});
+      difInvSnapshots = difInvSnapshots.filter(s => s.id !== snap.id);
+      difInvSnapshots.push(snap);
+      okCount++;
+      const avisoFaltante = !parsed.cajasEncontrada ? ' ⚠ No se detectó pestaña de Cajas.' : (!parsed.polinesEncontrada ? ' ⚠ No se detectó pestaña de Polines.' : '');
+      row.innerHTML += ` <span style="color:var(--good)">✓ ${snap.cajasCount.toLocaleString('es-CL')} fila(s) Cajas · ${snap.polinesCount.toLocaleString('es-CL')} fila(s) Polines</span>${avisoFaltante ? `<br><span style="color:var(--warn);font-size:11.5px">${avisoFaltante} Pestañas del archivo: ${parsed.sheetNames.join(', ')}</span>` : ''}`;
+    }catch(err){
+      errCount++;
+      row.innerHTML += ` <span style="color:var(--warn)">✗ ${err.message}</span>`;
+    }
+  }
+  difInvSnapshots.sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  const saved = await setStore('difinv-snapshots', slimDifInvSnapshotsForStorage(difInvSnapshots));
+  if(!saved){
+    statusEl.innerHTML = `<div class="status-msg err">El archivo se procesó pero no se pudo guardar (falló el almacenamiento). Intenta de nuevo en unos segundos.</div>`;
+    renderApp();
+    return;
+  }
+  statusEl.innerHTML = `<div class="status-msg ${errCount? 'err':'ok'}">${okCount} archivo(s) procesado(s)${errCount? ', '+errCount+' con error':''}.</div>`;
+  renderApp();
+}
+window.handleDifInvFiles = handleDifInvFiles;
+
+async function deleteDifInvSnapshot(id){
+  const backup = difInvSnapshots;
+  const next = difInvSnapshots.filter(s=>s.id!==id);
+  difInvSnapshots = next;
+  renderApp();
+  const result = await setStore('difinv-snapshots', slimDifInvSnapshotsForStorage(next));
+  if(!result){
+    difInvSnapshots = backup;
+    renderApp();
+    showToast('No se pudo eliminar el archivo: falló el guardado. Intenta de nuevo.', 'err');
+    return;
+  }
+  showToast('Archivo eliminado correctamente.', 'ok');
+}
+window.deleteDifInvSnapshot = deleteDifInvSnapshot;
+
+let confirmClearDifInv = false;
+function requestClearDifInv(){
+  confirmClearDifInv = true;
+  renderApp();
+}
+window.requestClearDifInv = requestClearDifInv;
+function cancelClearDifInv(){
+  confirmClearDifInv = false;
+  renderApp();
+}
+window.cancelClearDifInv = cancelClearDifInv;
+async function clearAllDifInvSnapshots(){
+  confirmClearDifInv = false;
+  const backup = difInvSnapshots;
+  difInvSnapshots = [];
+  renderApp();
+  const result = await setStore('difinv-snapshots', []);
+  if(!result){
+    difInvSnapshots = backup;
+    renderApp();
+    showToast('No se pudo vaciar el historial: falló el guardado. Intenta de nuevo.', 'err');
+    return;
+  }
+  showToast('Historial vaciado correctamente.', 'ok');
+}
+window.clearAllDifInvSnapshots = clearAllDifInvSnapshots;
+
+function exportBackup(){
+  if(!bases && snapshots.length===0 && mmSnapshots.length===0){
+    showToast('No hay datos cargados todavía para exportar.', 'err');
+    return;
+  }
+  const payload = { bases, snapshots, mmSnapshots, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  a.href = url;
+  a.download = `respaldo_ocupacion_cd_${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('Respaldo descargado. Guárdalo por si el guardado automático vuelve a fallar.', 'ok');
+}
+window.exportBackup = exportBackup;
+
+document.getElementById('fileImport').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    if(!payload || (!payload.bases && !payload.snapshots && !payload.mmSnapshots)) throw new Error('El archivo no tiene el formato esperado.');
+    bases = payload.bases || null;
+    snapshots = payload.snapshots || [];
+    mmSnapshots = payload.mmSnapshots || [];
+    updateHeaderPills();
+    renderApp();
+    showToast(`Respaldo del ${payload.exportedAt ? new Date(payload.exportedAt).toLocaleString('es-CL', {hour12:false}) : '—'} cargado en pantalla. Intentando guardarlo...`, 'ok');
+    const savedBases = bases ? await setStore('bases-config', bases) : true;
+    const savedSnaps = await setStore('stock-snapshots', slimSnapshotsForStorage(snapshots));
+    const savedMM = await setStore('mm-stock-snapshots', slimMMSnapshotsForStorage(mmSnapshots));
+    if(!savedBases || !savedSnaps || !savedMM){
+      showToast('El respaldo se cargó en pantalla pero no se pudo guardar todavía. Vuelve a intentar el guardado más tarde con "Exportar respaldo" como resguardo.', 'err');
+    }
+  }catch(err){
+    showToast('No se pudo leer el archivo de respaldo: ' + err.message, 'err');
+  }
+  e.target.value = '';
+});
+
+function formatKB(obj){
+  try{ return (JSON.stringify(obj).length/1024).toFixed(0); }
+  catch(e){ return '?'; }
+}
+
+/* Solo el corte más reciente necesita el detalle fila-por-fila (para exportar CSV).
+   Los cortes antiguos solo se usan para tendencias agregadas, así que les quitamos
+   ese peso antes de guardar, para no acercarnos al límite de almacenamiento. */
+function slimSnapshotsForStorage(arr){
+  if(!arr || arr.length === 0) return arr;
+  const latestId = [...arr].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha))[0].id;
+  return arr.map(s=>{
+    if(s.id === latestId) return s;
+    return {
+      ...s,
+      unmatchedRawRows: [],
+      bloqueoRawRows: [],
+      unmatchedDetail: [],
+      noClusterizados: [],
+      inventario: s.inventario ? {
+        ...s.inventario,
+        sinCosto: [],
+        perdida: s.inventario.perdida ? { ...s.inventario.perdida, porTipoLista: {}, top5: [] } : s.inventario.perdida
+      } : s.inventario,
+      densidad: s.densidad ? { ...s.densidad, rawRows: [] } : s.densidad,
+      inmovilizado: s.inmovilizado ? { ...s.inmovilizado, rawRows: [] } : s.inmovilizado
+    };
+  });
+}
+function slimMMSnapshotsForStorage(arr){
+  if(!arr || arr.length === 0) return arr;
+  const latestId = [...arr].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha))[0].id;
+  return arr.map(s=>{
+    if(s.id === latestId) return s;
+    return { ...s, noClusterizados: [], sinCosto: [] };
+  });
+}
+function slimDifInvSnapshotsForStorage(arr){
+  if(!arr || arr.length === 0) return arr;
+  const latestId = [...arr].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha))[0].id;
+  return arr.map(s=>{
+    if(s.id === latestId) return s;
+    return { ...s, rowsCajas: [], rowsPolines: [] };
+  });
+}
+
+let confirmClearEWM = false;
+function requestClearEWM(){
+  confirmClearEWM = true;
+  renderApp();
+}
+window.requestClearEWM = requestClearEWM;
+function cancelClearEWM(){
+  confirmClearEWM = false;
+  renderApp();
+}
+window.cancelClearEWM = cancelClearEWM;
+async function clearAllSnapshots(){
+  confirmClearEWM = false;
+  const backup = snapshots;
+  snapshots = [];
+  renderApp();
+  const result = await setStore('stock-snapshots', []);
+  if(!result){
+    snapshots = backup;
+    renderApp();
+    showToast('No se pudo vaciar el historial: falló el guardado. Intenta de nuevo.', 'err');
+    return;
+  }
+  updateHeaderPills();
+  showToast('Historial vaciado correctamente.', 'ok');
+}
+window.clearAllSnapshots = clearAllSnapshots;
+
+async function deleteSnapshot(id){
+  const backup = snapshots;
+  const next = snapshots.filter(s=>s.id!==id);
+  snapshots = next;
+  renderApp();
+  const result = await setStore('stock-snapshots', slimSnapshotsForStorage(next));
+  if(!result){
+    snapshots = backup;
+    renderApp();
+    const sizeKB = formatKB(backup);
+    showToast(`No se pudo eliminar el corte: falló el guardado. Historial actual: ~${sizeKB} KB de un máximo de ~5000 KB. Intenta de nuevo en unos segundos.`, 'err');
+    return;
+  }
+  updateHeaderPills();
+  showToast('Corte eliminado correctamente.', 'ok');
+}
+
+function setFilterZona(v){ filterZona = v; filterPasillo = 'ALL'; renderApp(); }
+function setFilterPasillo(v){ filterPasillo = v; renderApp(); }
+window.setFilterZona = setFilterZona;
+window.setFilterPasillo = setFilterPasillo;
+
+/* ---------------- header pills + clock ---------------- */
+function updateHeaderPills(){
+  const dotB = document.getElementById('dotBases');
+  const txtB = document.getElementById('pillBasesText');
+  if(bases){
+    dotB.className = 'dot on';
+    txtB.innerHTML = `Bases: <strong>${bases.locations.length.toLocaleString('es-CL')} ubic.</strong>`;
+  } else {
+    dotB.className = 'dot off';
+    txtB.textContent = 'Bases: sin cargar';
+  }
+  const dotS = document.getElementById('dotStock');
+  const txtS = document.getElementById('pillStockText');
+  if(snapshots.length){
+    dotS.className = 'dot on';
+    txtS.innerHTML = `Stock: <strong>${snapshots.length} corte${snapshots.length>1?'s':''}</strong>`;
+  } else {
+    dotS.className = 'dot off';
+    txtS.textContent = 'Stock: sin cortes';
+  }
+}
+function updateClock(){
+  const el = document.getElementById('headerClock');
+  if(!el) return;
+  const now = new Date();
+  const time = now.toLocaleTimeString('es-CL', {hour:'2-digit', minute:'2-digit', hour12:false});
+  const date = now.toLocaleDateString('es-CL', {day:'2-digit', month:'short', year:'numeric'}).replace('.', '').toUpperCase();
+  el.innerHTML = `<div class="clock-time">${time}</div><div class="clock-date">${date}</div>`;
+}
+updateClock();
+setInterval(updateClock, 30000);
+
+/* ---------------- period grouping for trend ---------------- */
+function isoWeekKey(d){
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - day + 3);
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(),0,4));
+  const week = 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay()+6)%7)) / 7);
+  return `${date.getUTCFullYear()}-S${String(week).padStart(2,'0')}`;
+}
+function periodKey(dateStr, granularity){
+  const d = new Date(dateStr);
+  if(granularity==='dia'){
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${dd}-${mm}-${yy}`;
+  }
+  if(granularity==='semana') return isoWeekKey(d);
+  return d.toISOString().slice(0,7);
+}
+function getHoraPoints(){
+  if(snapshots.length === 0) return [];
+  const sorted = [...snapshots].sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  const last8 = sorted.slice(-8);
+  const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const firstDay = dayKey(new Date(last8[0].fecha));
+  const allSameDay = last8.every(s => dayKey(new Date(s.fecha)) === firstDay);
+  return last8.map(s => {
+    const dt = new Date(s.fecha);
+    const hhmm = dt.toLocaleTimeString('es-CL', {hour:'2-digit', minute:'2-digit', hour12:false});
+    const label = allSameDay
+      ? hhmm
+      : `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')} / ${hhmm}`;
+    return { label, snap: s, pct: s.pct };
+  });
+}
+
+function groupForTrend(granularity){
+  if(granularity === 'hora') return getHoraPoints();
+  const groups = {};
+  snapshots.forEach(s=>{
+    const key = periodKey(s.fecha, granularity);
+    if(!groups[key] || new Date(s.fecha) > new Date(groups[key].fecha)) groups[key] = s;
+  });
+  const keys = Object.keys(groups).sort((a,b)=> new Date(groups[a].fecha) - new Date(groups[b].fecha));
+  return keys.map(k=>({label: granularity==='semana' ? k.replace(/^\d{4}-/,'') : k, snap: groups[k], pct: groups[k].pct}));
+}
+
+/* ---------------- charts ---------------- */
+let trendChart, zoneDonutChart, pasilloChart, virtualTrendChart;
+let currentMetricStockCD = 'unidades';
+let currentMetricDifInv = 'unidades';
+function setMetricDifInv(m, btn){
+  currentMetricDifInv = m;
+  const scope = btn ? btn.parentElement : document;
+  scope.querySelectorAll('.toggle-group button').forEach(b=> b.classList.toggle('active', b.dataset.m===m));
+  renderApp();
+}
+window.setMetricDifInv = setMetricDifInv;
+let currentGranularityDifInv = 'dia';
+let filterDifInvDesde = '';
+let filterDifInvHasta = '';
+function setFilterDifInvDesde(v){ filterDifInvDesde = v; renderApp(); }
+window.setFilterDifInvDesde = setFilterDifInvDesde;
+function setFilterDifInvHasta(v){ filterDifInvHasta = v; renderApp(); }
+window.setFilterDifInvHasta = setFilterDifInvHasta;
+function clearFilterDifInvFechas(){ filterDifInvDesde=''; filterDifInvHasta=''; renderApp(); }
+window.clearFilterDifInvFechas = clearFilterDifInvFechas;
+function filterRowsByDateRange(rows, desde, hasta){
+  if(!desde && !hasta) return rows;
+  const desdeTime = desde ? new Date(desde+'T00:00:00').getTime() : -Infinity;
+  const hastaTime = hasta ? new Date(hasta+'T23:59:59').getTime() : Infinity;
+  return rows.filter(r=>{
+    const t = new Date(r.fecha).getTime();
+    return t >= desdeTime && t <= hastaTime;
+  });
+}
+function setGranularityDifInv(g, btn){
+  currentGranularityDifInv = g;
+  const scope = btn ? btn.parentElement : document;
+  scope.querySelectorAll('.toggle-group button').forEach(b=> b.classList.toggle('active', b.dataset.g===g));
+  renderApp();
+}
+window.setGranularityDifInv = setGranularityDifInv;
+
+let difInvTrendChartCajas, difInvTrendChartPolines;
+function buildDifInvTrendConfig(tendencia){
+  const puntos = (tendencia && tendencia[currentGranularityDifInv]) || [];
+  const esMonto = currentMetricDifInv === 'monto';
+  const fmtLabel = p => {
+    if(currentGranularityDifInv==='mes'){
+      const d = new Date(p.fecha);
+      return `${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    }
+    if(currentGranularityDifInv==='semana') return p.key.replace(/^\d{4}-/,'');
+    const d = new Date(p.fecha);
+    return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  };
+  const labels = puntos.map(fmtLabel);
+  const datasets = [
+    { label:'Positivas', data: puntos.map(p=> Math.round(esMonto?p.sumPosMonto:p.sumPosUnid)), borderColor:'#6FBF8B', backgroundColor:'transparent', tension:.3, pointRadius:3, borderWidth:2 },
+    { label:'Negativas', data: puntos.map(p=> Math.round(esMonto?p.sumNegMonto:p.sumNegUnid)), borderColor:'#E2665F', backgroundColor:'transparent', tension:.3, pointRadius:3, borderWidth:2 },
+    { label:'Absoluta', data: puntos.map(p=> Math.round(esMonto?p.sumAbsMonto:p.sumAbsUnid)), borderColor:'#E8B93D', backgroundColor:'transparent', tension:.3, pointRadius:3, borderWidth:2 }
+  ];
+  return {
+    type:'line',
+    data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'bottom', labels:{ color:'#C9BEA9', font:{size:10.5}, boxWidth:10, padding:10 } },
+        tooltip:{
+          backgroundColor:'#3D3A34', borderColor:'#453C2C', borderWidth:1,
+          titleColor:'#F1E9DA', bodyColor:'#F1E9DA', padding:10,
+          callbacks:{ label: c => `${c.dataset.label}: ${esMonto?'$':''}${c.parsed.y.toLocaleString('es-CL')}` }
+        }
+      },
+      scales:{
+        y:{ ticks:{color:'#C9BEA9', callback:v=> esMonto ? '$'+v.toLocaleString('es-CL') : v.toLocaleString('es-CL')}, grid:{color:'#39331F'} },
+        x:{ ticks:{color:'#C9BEA9', font:{size:10.5}}, grid:{display:false} }
+      }
+    }
+  };
+}
+function renderDifInvTrendCharts(latestDifInv){
+  const ctxCajas = document.getElementById('difInvTrendCajas');
+  const ctxPolines = document.getElementById('difInvTrendPolines');
+  if(difInvTrendChartCajas){ difInvTrendChartCajas.destroy(); difInvTrendChartCajas = null; }
+  if(difInvTrendChartPolines){ difInvTrendChartPolines.destroy(); difInvTrendChartPolines = null; }
+  if(!latestDifInv) return;
+  if(ctxCajas && !chartJsMissing(ctxCajas)) difInvTrendChartCajas = new Chart(ctxCajas, buildDifInvTrendConfig(latestDifInv.tendenciaCajas));
+  if(ctxPolines && !chartJsMissing(ctxPolines)) difInvTrendChartPolines = new Chart(ctxPolines, buildDifInvTrendConfig(latestDifInv.tendenciaPolines));
+}
+
+let expandedTiposInmo = new Set();
+let expandedTiposPerdida = new Set();
+let expandedTopsDifInv = new Set();
+function toggleTopDifInv(key){
+  if(expandedTopsDifInv.has(key)) expandedTopsDifInv.delete(key);
+  else expandedTopsDifInv.add(key);
+  renderApp();
+}
+window.toggleTopDifInv = toggleTopDifInv;
+function toggleTipoPerdida(tipo){
+  if(expandedTiposPerdida.has(tipo)) expandedTiposPerdida.delete(tipo);
+  else expandedTiposPerdida.add(tipo);
+  renderApp();
+}
+window.toggleTipoPerdida = toggleTipoPerdida;
+function toggleTipoInmo(tipo){
+  if(expandedTiposInmo.has(tipo)) expandedTiposInmo.delete(tipo);
+  else expandedTiposInmo.add(tipo);
+  renderApp();
+}
+window.toggleTipoInmo = toggleTipoInmo;
+function setMetricStockCD(m, btn){
+  currentMetricStockCD = m;
+  const scope = btn ? btn.parentElement : document;
+  scope.querySelectorAll('.toggle-group button').forEach(b=> b.classList.toggle('active', b.dataset.m===m));
+  renderInventarioTab();
+}
+window.setMetricStockCD = setMetricStockCD;
+function fmtCompact(v){
+  const sign = v < 0 ? '-' : '';
+  const av = Math.abs(v);
+  if(av >= 1e6) return sign + (av/1e6).toLocaleString('es-CL', {maximumFractionDigits:1}) + ' M';
+  if(av >= 1e3) return sign + (av/1e3).toLocaleString('es-CL', {maximumFractionDigits:1}) + ' U';
+  return sign + Math.round(av).toLocaleString('es-CL');
+}
+function fmtSG(unidades, monto, mode){
+  return mode==='monto' ? ('$'+Math.round(monto).toLocaleString('es-CL')) : Math.round(unidades).toLocaleString('es-CL');
+}
+let currentGranularityVirtual = 'dia';
+let currentGranularity = 'dia';
+const CHART_COLORS = ['#E8B93D','#8B5E34','#C9BEA9','#5C5240','#B5842E','#6B5A3E','#D9A825','#4A4030'];
+function chartJsMissing(ctx){
+  if(typeof Chart !== 'undefined') return false;
+  ctx.parentElement.innerHTML = '<p style="color:var(--text-faint);font-size:12.5px;text-align:center;padding-top:40px">No se pudo cargar la librería de gráficos. Recarga la página.</p>';
+  return true;
+}
+
+
+const DISTINCT_COLORS = ['#E74C3C','#3498DB','#2ECC71','#F1C40F','#9B59B6','#1ABC9C','#E67E22','#EC407A','#5D6D7E','#00BCD4'];
+
+function renderVirtualTrendChart(){
+  const ctx = document.getElementById('virtualTrendCanvas');
+  if(!ctx || chartJsMissing(ctx)) return;
+  const points = groupForTrend(currentGranularityVirtual).slice(-8);
+  const labels = points.map(p=>p.label);
+  const metric = currentMetricStockCD;
+
+  const tipoSet = new Set();
+  points.forEach(p=>{
+    const perdida = p.snap.inventario && p.snap.inventario.perdida;
+    ((perdida && perdida.porMaterial) || []).forEach(m=> tipoSet.add(m.tipo));
+  });
+  const tipos = Array.from(tipoSet).sort();
+
+  const datasets = tipos.map((tipo,i)=>{
+    const data = points.map(p=>{
+      const perdida = p.snap.inventario && p.snap.inventario.perdida;
+      const found = ((perdida && perdida.porMaterial) || []).find(m=>m.tipo===tipo);
+      if(!found) return 0;
+      return Math.round(metric==='monto' ? found.monto : found.unidades);
+    });
+    return {
+      label: tipo, data,
+      borderColor: DISTINCT_COLORS[i % DISTINCT_COLORS.length], backgroundColor:'transparent',
+      fill:false, tension:.3, pointRadius:3, pointHoverRadius:5, borderWidth:2
+    };
+  });
+
+  if(virtualTrendChart) virtualTrendChart.destroy();
+  virtualTrendChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'bottom', labels:{ color:'#C9BEA9', font:{size:10.5}, boxWidth:10, padding:10 } },
+        tooltip:{
+          backgroundColor:'#3D3A34', borderColor:'#453C2C', borderWidth:1,
+          titleColor:'#F1E9DA', bodyColor:'#F1E9DA', padding:10,
+          callbacks:{ label: c => `${c.dataset.label}: ${metric==='monto' ? '$'+c.parsed.y.toLocaleString('es-CL') : c.parsed.y.toLocaleString('es-CL')}` }
+        }
+      },
+      scales:{
+        y:{ beginAtZero:true, ticks:{color:'#C9BEA9', callback:v=>fmtCompact(v)}, grid:{color:'#39331F'} },
+        x:{ ticks:{color:'#C9BEA9', font:{size:10.5}}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+function renderTrendChart(){
+  const ctx = document.getElementById('trendChartCanvas');
+  if(!ctx || chartJsMissing(ctx)) return;
+  let points = groupForTrend(currentGranularity);
+  if(currentGranularity==='dia' || currentGranularity==='semana') points = points.slice(-8);
+  const labels = points.map(p=>p.label);
+  const data = points.map(p=> +(p.pct*100).toFixed(1));
+
+  const TARGET_TIPOS = [
+    { key:'MATERIAS PRIMAS', color:'#5DADE2' },
+    { key:'PAN', color:'#58D68D' },
+    { key:'DLV', color:'#E17092' }
+  ];
+  const tiposPresentes = new Set();
+  points.forEach(p=>{
+    Object.keys(getMaterialAgg(p.snap, 'ALL')).forEach(t=> tiposPresentes.add(t));
+  });
+  const activos = TARGET_TIPOS.filter(t => tiposPresentes.has(t.key));
+
+  const materialSeries = activos.map(t=>{
+    const serie = points.map(p=>{
+      const agg = getMaterialAgg(p.snap, 'ALL');
+      const ubic = agg[t.key] ? agg[t.key].ubicaciones : 0;
+      return p.snap.totalUbicaciones ? +(ubic/p.snap.totalUbicaciones*100).toFixed(1) : 0;
+    });
+    return {
+      label: t.key, data: serie,
+      borderColor: t.color, backgroundColor:'transparent',
+      fill:false, tension:.3, pointRadius:3, pointHoverRadius:5, borderWidth:2
+    };
+  });
+
+  const trendLabelPlugin = {
+    id:'trendDataLabels',
+    afterDatasetsDraw(chart){
+      const c = chart.ctx;
+      const meta = chart.getDatasetMeta(0);
+      meta.data.forEach((point,i)=>{
+        c.save();
+        c.fillStyle = '#E8B93D';
+        c.font = "600 10.5px Inter, sans-serif";
+        c.textAlign = 'center';
+        c.fillText(data[i] + '%', point.x, point.y - 10);
+        c.restore();
+      });
+    }
+  };
+
+  if(trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets:[
+      {
+        label:'Ocupación general',
+        data, borderColor:'#E8B93D', backgroundColor:'rgba(232,185,61,.14)',
+        fill:true, tension:.3, pointBackgroundColor:'#E8B93D', pointRadius:4, pointHoverRadius:6, borderWidth:2.5
+      },
+      ...materialSeries
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{ top:20 } },
+      plugins:{
+        legend:{ display: activos.length>0, position:'bottom', labels:{ color:'#C9BEA9', font:{size:10.5}, boxWidth:10, padding:10 } },
+        tooltip:{
+          backgroundColor:'#3D3A34', borderColor:'#453C2C', borderWidth:1,
+          titleColor:'#F1E9DA', bodyColor:'#F1E9DA', padding:10,
+          callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y}%` }
+        }
+      },
+      scales:{
+        y:{ min:0, max:100, ticks:{color:'#C9BEA9', callback:v=>v+'%'}, grid:{color:'#39331F'} },
+        x:{ ticks:{color:'#C9BEA9', font:{size:10.5}}, grid:{display:false} }
+      }
+    },
+    plugins:[trendLabelPlugin]
+  });
+}
+
+let bloqueoMaterialChart;
+function renderBloqueoMaterialDonut(latest){
+  const ctx = document.getElementById('bloqueoMaterialDonut');
+  if(!ctx || chartJsMissing(ctx)) return;
+  const porMaterial = (latest.bloqueoCalidad && latest.bloqueoCalidad.porMaterial) || [];
+  if(bloqueoMaterialChart) bloqueoMaterialChart.destroy();
+  if(porMaterial.length===0) return;
+  bloqueoMaterialChart = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels: porMaterial.map(m=>m.tipo),
+      datasets:[{ data: porMaterial.map(m=>m.ubicaciones), backgroundColor: porMaterial.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]), borderWidth:2, borderColor:'#26221B' }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#3D3A34', titleColor:'#F1E9DA', bodyColor:'#F1E9DA', padding:10,
+          callbacks:{ label: c => `${c.label}: ${c.parsed.toLocaleString('es-CL')} ubic.` }
+        }
+      }
+    }
+  });
+}
+
+function renderZoneDonut(latest){
+  const ctx = document.getElementById('zoneDonutCanvas');
+  if(!ctx || chartJsMissing(ctx)) return;
+  const zones = Object.keys(latest.zonaStats).sort();
+  const totals = zones.map(z=>latest.zonaStats[z].total);
+
+  const totalAll = zones.reduce((s,z)=> s+latest.zonaStats[z].total, 0);
+  const ocupAll = zones.reduce((s,z)=> s+latest.zonaStats[z].ocupadas, 0);
+  const pctLibre = totalAll ? (1 - ocupAll/totalAll)*100 : 0;
+
+  const centerLabelPlugin = {
+    id:'zoneDonutLabels',
+    afterDraw(chart){
+      const c = chart.ctx;
+      const meta = chart.getDatasetMeta(0);
+      meta.data.forEach((arc, i)=>{
+        const zs = latest.zonaStats[zones[i]];
+        if(!zs || !zs.total) return;
+        const pctOcup = zs.ocupadas/zs.total*100;
+        const angle = (arc.startAngle + arc.endAngle) / 2;
+        const radius = (arc.innerRadius + arc.outerRadius) / 2;
+        const x = arc.x + Math.cos(angle) * radius;
+        const y = arc.y + Math.sin(angle) * radius;
+        c.save();
+        c.font = "700 11px Inter, sans-serif";
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.lineWidth = 3;
+        c.strokeStyle = 'rgba(38,34,27,.85)';
+        c.strokeText(pctOcup.toFixed(0)+'%', x, y);
+        c.fillStyle = '#F1E9DA';
+        c.fillText(pctOcup.toFixed(0)+'%', x, y);
+        c.restore();
+      });
+
+      const cx = (chart.chartArea.left + chart.chartArea.right)/2;
+      const cy = (chart.chartArea.top + chart.chartArea.bottom)/2;
+      c.save();
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillStyle = '#F1E9DA';
+      c.font = "700 21px 'Space Grotesk', sans-serif";
+      c.fillText(pctLibre.toFixed(0)+'%', cx, cy-8);
+      c.fillStyle = '#8F8570';
+      c.font = "500 10.5px Inter, sans-serif";
+      c.fillText('espacio libre', cx, cy+13);
+      c.restore();
+    }
+  };
+
+  if(zoneDonutChart) zoneDonutChart.destroy();
+  zoneDonutChart = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels: zones.map(z=>`${z} · ${zonaName(z)}`),
+      datasets:[{ data: totals, backgroundColor: zones.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]), borderWidth:2, borderColor:'#26221B' }]
+    },
+    plugins:[centerLabelPlugin],
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'64%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#3D3A34', titleColor:'#F1E9DA', bodyColor:'#F1E9DA', padding:10,
+          callbacks:{ label: c => `${c.label}: ${c.parsed.toLocaleString('es-CL')} ubic.` }
+        }
+      }
+    }
+  });
+}
+
+function renderPasilloChart(latest){
+  const ctx = document.getElementById('pasilloChartCanvas');
+  if(!ctx || chartJsMissing(ctx)) return;
+  const agg = getPasilloAgg(latest, 'ALL');
+  let keys = Object.keys(agg).filter(k=>k).sort();
+  if(filterPasillo !== 'ALL') keys = keys.filter(k=>k===filterPasillo);
+  const utilizacion = keys.map(k=> +(agg[k].total ? agg[k].ocupadas/agg[k].total*100 : 0).toFixed(1));
+  const capacidad = keys.map(()=>100);
+
+  const dataLabelPlugin = {
+    id:'pasilloDataLabels',
+    afterDatasetsDraw(chart){
+      const c = chart.ctx;
+      const meta = chart.getDatasetMeta(1);
+      meta.data.forEach((bar,i)=>{
+        c.save();
+        c.fillStyle = '#F1E9DA';
+        c.font = "600 11px Inter, sans-serif";
+        c.textAlign = 'center';
+        c.fillText(utilizacion[i] + '%', bar.x, bar.y - 6);
+        c.restore();
+      });
+    },
+    afterDraw(chart){
+      const c = chart.ctx;
+      const meta = chart.getDatasetMeta(1);
+      const axisY = chart.scales.x.bottom;
+      meta.data.forEach((bar,i)=>{
+        const tickX = chart.scales.x.getPixelForTick(i);
+        const ocLabel = `${agg[keys[i]].ocupadas.toLocaleString('es-CL')} OCU`;
+        const vacLabel = `${(agg[keys[i]].total-agg[keys[i]].ocupadas).toLocaleString('es-CL')} VAC`;
+        c.save();
+        c.textAlign = 'center';
+        c.font = "700 12px Inter, sans-serif";
+        c.fillStyle = '#E2665F';
+        c.fillText(ocLabel, tickX, axisY + 18);
+        c.fillStyle = '#6FBF8B';
+        c.fillText(vacLabel, tickX, axisY + 34);
+        c.restore();
+      });
+    }
+  };
+
+  if(pasilloChart) pasilloChart.destroy();
+  pasilloChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: keys.map(k=> 'P'+k.replace(/^P/i,'')),
+      datasets:[
+        {label:'Capacidad', data:capacidad, backgroundColor:'#3D3A34', borderRadius:4, maxBarThickness:24},
+        {label:'Utilización', data:utilizacion, backgroundColor:'#E8B93D', borderRadius:4, maxBarThickness:24}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{ bottom:44 } },
+      plugins:{
+        legend:{ position:'top', align:'end', labels:{ color:'#C9BEA9', font:{size:11}, boxWidth:10, padding:14 } },
+        tooltip:{ backgroundColor:'#3D3A34', titleColor:'#F1E9DA', bodyColor:'#F1E9DA', padding:10 }
+      },
+      scales:{
+        y:{ min:0, max:112, ticks:{color:'#C9BEA9', callback:v=> v<=100? v+'%':''}, grid:{color:'#39331F'} },
+        x:{ ticks:{color:'#F1E9DA', font:{size:13, weight:'700'}, padding:8}, grid:{display:false} }
+      }
+    },
+    plugins:[dataLabelPlugin]
+  });
+}
+
+function setGranularity(g, btn){
+  currentGranularity = g;
+  const scope = btn ? btn.parentElement : document;
+  scope.querySelectorAll('.toggle-group button').forEach(b=> b.classList.toggle('active', b.dataset.g===g));
+  renderTrendChart();
+}
+window.setGranularity = setGranularity;
+function setGranularityVirtual(g, btn){
+  currentGranularityVirtual = g;
+  const scope = btn ? btn.parentElement : document;
+  scope.querySelectorAll('.toggle-group button').forEach(b=> b.classList.toggle('active', b.dataset.g===g));
+  renderVirtualTrendChart();
+}
+window.setGranularityVirtual = setGranularityVirtual;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.deleteSnapshot = deleteSnapshot;
+
+/* ---------------- heatmap color ---------------- */
+function heatColor(pct){
+  const c1 = [58,51,39], c2 = [232,185,61];
+  const r = Math.round(c1[0] + (c2[0]-c1[0])*pct);
+  const g = Math.round(c1[1] + (c2[1]-c1[1])*pct);
+  const b = Math.round(c1[2] + (c2[2]-c1[2])*pct);
+  return `rgb(${r},${g},${b})`;
+}
+function heatTextColor(pct){ return pct > 0.6 ? '#3D3A34' : '#F1E9DA'; }
+function heatSubTextColor(pct){ return pct > 0.6 ? 'rgba(27,23,18,.7)' : 'rgba(241,233,218,.65)'; }
+
+/* ---------------- render: tipo material bars ---------------- */
+function renderMaterialBarsHtml(latest){
+  const agg = getMaterialAgg(latest, filterZona);
+  const entries = Object.entries(agg)
+    .map(([tipo,v])=>({tipo, ...v}))
+    .sort((a,b)=> b.ubicaciones - a.ubicaciones);
+  if(entries.length === 0){
+    if(isLegacyMaterial(bases)){
+      return `<p style="color:var(--text-faint);font-size:12.5px">Vuelve a subir el archivo "Bases Capacidad CD" para habilitar este desglose (se detectó una versión anterior sin la pestaña "Cluster Tipo Material", o sin la columna "TIPO MATERIAL").</p>`;
+    }
+    if(!latest.materialStats){
+      return `<p style="color:var(--text-faint);font-size:12.5px">Este corte de stock se cargó con una versión anterior del dashboard y no guardó este desglose. Elimínalo en el historial y vuelve a subirlo.</p>`;
+    }
+    return `<p style="color:var(--text-faint);font-size:12.5px">Sin datos para este filtro.</p>`;
+  }
+
+  const noClusterCount = (latest.noClusterizados||[]).length;
+  const allUnclassified = entries.length === 1 && entries[0].tipo === 'No Clusterizados';
+  const maxUbic = Math.max(...entries.map(e=>e.ubicaciones), 1);
+  const materialesCount = Object.keys((bases && bases.materiales) || {}).length;
+
+  const warningHtml = allUnclassified ? `
+    <div class="notice-card" style="background:rgba(226,102,95,.08);border:1px solid rgba(226,102,95,.3);color:#F3A39D;margin-bottom:14px">
+      ⚠ El 100% de las ubicaciones quedó "No Clusterizados".
+      ${materialesCount === 0
+        ? ` No se pudo leer ningún código desde la pestaña "Cluster Tipo Material" (¿nombre de pestaña distinto, o vacía?). Vuelve a subir "Bases Capacidad CD".`
+        : ` Se leyeron ${materialesCount.toLocaleString('es-CL')} códigos desde "Cluster Tipo Material", pero ninguno coincidió con los códigos "Producto" del stock. Exporta la lista de abajo y compárala manualmente con tu maestro de productos.`
+      }
+    </div>` : '';
+
+  return `${warningHtml}<div class="tipo-list">
+    ${entries.map(e=>`
+      <div class="tipo-row">
+        <div class="tipo-label" title="${e.tipo}">${e.tipo}</div>
+        <div class="tipo-bar-track"><div class="tipo-bar-fill" style="width:${(e.ubicaciones/maxUbic*100).toFixed(1)}%"></div></div>
+        <div class="tipo-value">${e.ubicaciones.toLocaleString('es-CL')} UB (${latest.totalUbicaciones ? (e.ubicaciones/latest.totalUbicaciones*100).toFixed(1) : '0.0'}%)</div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function exportNoClusterizados(){
+  const sorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latest = sorted[0];
+  const sortedMM = [...mmSnapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latestMM = sortedMM[0];
+  const listEWM = (latest && latest.noClusterizados) || [];
+  const listMM = (latestMM && latestMM.noClusterizados) || [];
+  if(listEWM.length === 0 && listMM.length === 0){
+    showToast('No hay códigos sin clusterizar para exportar.', 'err');
+    return;
+  }
+  const esc = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
+  const header = 'Producto;Descripcion;Fuente;Unidades';
+  const rowsEWM = listEWM.map(x => [x.producto, esc(x.descripcion), 'EWM', Math.round(x.unidades)].join(';'));
+  const rowsMM = listMM.map(x => [x.producto, esc(x.descripcion), 'MM', Math.round(x.unidades)].join(';'));
+  const csv = '\uFEFF' + [header, ...rowsEWM, ...rowsMM].join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  a.href = url;
+  a.download = `productos_no_clusterizados_${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+window.exportNoClusterizados = exportNoClusterizados;
+
+function exportSinCosto(){
+  const sorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latest = sorted[0];
+  const sortedMM = [...mmSnapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latestMM = sortedMM[0];
+  const listEWM = (latest && latest.inventario && latest.inventario.sinCosto) || [];
+  const listMM = (latestMM && latestMM.sinCosto) || [];
+  if(listEWM.length === 0 && listMM.length === 0){
+    showToast('No hay códigos sin costo para exportar.', 'err');
+    return;
+  }
+  const esc = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
+  const header = 'Producto;Descripcion;Fuente;Unidades';
+  const rowsEWM = listEWM.map(x => [x.producto, esc(x.descripcion), 'EWM', Math.round(x.unidades)].join(';'));
+  const rowsMM = listMM.map(x => [x.producto, esc(x.descripcion), 'MM', Math.round(x.unidades)].join(';'));
+  const csv = '\uFEFF' + [header, ...rowsEWM, ...rowsMM].join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  a.href = url;
+  a.download = `productos_sin_costo_${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+window.exportSinCosto = exportSinCosto;
+
+function exportUnmatchedRawDetail(){
+  const sorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latest = sorted[0];
+  const rows = (latest && latest.unmatchedRawRows) || [];
+  if(rows.length === 0){
+    showToast('No hay filas de stock en ubicaciones no reconocidas para exportar (o el corte es de una versión anterior — vuelve a subirlo).', 'err');
+    return;
+  }
+  const esc = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
+  const header = ['Tipo almacén','Ubicación','Producto','Descripción producto','Unidad manipulación','Unidad medida base','Ctd.','Lote','FeCaduc/FePreferCons','Fecha EM'].join(';');
+  const lines = rows.map(r => [
+    esc(r.tipoAlmacen), esc(r.ubicacion), esc(r.producto), esc(r.descripcionProducto),
+    esc(r.unidadManipulacion), esc(r.unidadMedida), r.ctd, esc(r.lote), esc(r.feCaduc), esc(r.fechaEM)
+  ].join(';'));
+  const csv = '\uFEFF' + [header, ...lines].join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  a.href = url;
+  a.download = `detalle_ubicaciones_no_reconocidas_${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+window.exportUnmatchedRawDetail = exportUnmatchedRawDetail;
+
+function exportBloqueoDetail(){
+  const sorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latest = sorted[0];
+  const rows = (latest && latest.bloqueoRawRows) || [];
+  if(rows.length === 0){
+    showToast('No hay productos bloqueados por calidad para exportar (o el corte es de una versión anterior — vuelve a subirlo).', 'err');
+    return;
+  }
+  const data = rows.map(r => ({
+    'Ubicación': r.ubicacion,
+    'Tipo material': r.tipoMaterial,
+    'Producto': r.producto,
+    'Descripción producto': r.descripcionProducto,
+    'Lote': r.lote,
+    'Fecha de vencimiento': r.feCaduc,
+    'Fecha de entrada de mercancía': r.fechaEM,
+    'Cantidad': r.ctd,
+    'Unidad de manipulación': r.unidadManipulacion
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Bloqueados calidad');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  XLSX.writeFile(wb, `productos_bloqueados_calidad_${stamp}.xlsx`);
+}
+window.exportBloqueoDetail = exportBloqueoDetail;
+
+function exportInmovilizadoDetail(){
+  const sorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latest = sorted[0];
+  const rows = (latest && latest.inmovilizado && latest.inmovilizado.rawRows) || [];
+  if(rows.length === 0){
+    showToast('No hay stock inmovilizado para exportar (o el corte es de una versión anterior — vuelve a subirlo).', 'err');
+    return;
+  }
+  const data = rows.map(r => ({
+    'Ubicación': r.ubicacion,
+    'Tipo almacén': r.tipoAlmacenStock,
+    'Producto': r.producto,
+    'Tipo material': r.tipoMaterial,
+    'Descripción producto': r.descripcionProducto,
+    'Lote': r.lote,
+    'Fecha de vencimiento': r.feCaduc,
+    'Fecha de entrada de mercancía': r.fechaEM,
+    'Cantidad': r.ctd,
+    'Unidad de manipulación': r.unidadManipulacion
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Stock inmovilizado');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  XLSX.writeFile(wb, `stock_inmovilizado_${stamp}.xlsx`);
+}
+window.exportInmovilizadoDetail = exportInmovilizadoDetail;
+
+function exportDifInventarioDetail(){
+  const sorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latest = sorted[0];
+  const porTipoLista = (latest && latest.inventario && latest.inventario.perdida && latest.inventario.perdida.porTipoLista) || {};
+  const allRows = Object.entries(porTipoLista).flatMap(([tipo, lista]) => lista.map(p => ({ ...p, tipo })));
+  if(allRows.length === 0){
+    showToast('No hay códigos con Dif Inventario para exportar (o el corte es de una versión anterior — vuelve a subirlo).', 'err');
+    return;
+  }
+  allRows.sort((a,b)=> b.monto - a.monto);
+  const data = allRows.map(p => ({
+    'Tipo material': p.tipo,
+    'Producto': p.producto,
+    'Descripción': p.descripcion,
+    'Unidades': Math.round(p.unidades),
+    'Valorización': Math.round(p.monto||0)
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Dif Inventario');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  XLSX.writeFile(wb, `dif_inventario_${stamp}.xlsx`);
+}
+window.exportDifInventarioDetail = exportDifInventarioDetail;
+
+function exportDensidadBajaDetail(){
+  const sorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latest = sorted[0];
+  const rows = (latest && latest.densidad && latest.densidad.rawRows) || [];
+  if(rows.length === 0){
+    showToast('No hay ubicaciones en el rango 1–65% para exportar (o el corte es de una versión anterior — vuelve a subirlo).', 'err');
+    return;
+  }
+  const data = rows.map(r => ({
+    'Tipo almacén': r.tipoAlmacenStock,
+    'Ubicación': r.ubicacion,
+    'Producto': r.producto,
+    'Tipo material': r.tipoMaterial,
+    'Descripción producto': r.descripcionProducto,
+    'Unidad manipulación': r.unidadManipulacion,
+    'Unidad medida base': r.unidadMedida,
+    'Ctd.': r.ctd,
+    'Lote': r.lote,
+    'FeCaduc/FePreferCons': r.feCaduc,
+    'Fecha EM': r.fechaEM,
+    'Tipo de stock': r.tipoStock,
+    'Denomin.tipo stocks': r.denominTipoStock,
+    '% Densidad': +Number(r.pctDensidad).toFixed(1)
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Densidad 1-65%');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  XLSX.writeFile(wb, `densidad_1_65_${stamp}.xlsx`);
+}
+window.exportDensidadBajaDetail = exportDensidadBajaDetail;
+
+/* ---------------- main render ---------------- */
+/* ---------------- tabs ---------------- */
+let currentTab = 'ocupacion';
+function setTab(t){
+  currentTab = t;
+  renderApp();
+}
+window.setTab = setTab;
+
+function tabBarHtml(){
+  return `
+    <div class="report-tabs fade-in">
+      <button class="report-tab ${currentTab==='ocupacion'?'active':''}" onclick="setTab('ocupacion')">Ocupación CD</button>
+      <button class="report-tab ${currentTab==='inventario'?'active':''}" onclick="setTab('inventario')">Stocks</button>
+      <button class="report-tab ${currentTab==='inventarios'?'active':''}" onclick="setTab('inventarios')">Inventarios</button>
+      <button class="report-tab ${currentTab==='carga'?'active':''}" onclick="setTab('carga')">Controlador del panel</button>
+    </div>`;
+}
+
+function renderApp(){
+  if(currentTab === 'carga'){
+    renderCargaDatosTab();
+    return;
+  }
+  if(currentTab === 'inventarios'){
+    renderInventariosTab();
+    return;
+  }
+  if(!bases || snapshots.length === 0){
+    renderEmptyDataPrompt();
+    return;
+  }
+  if(currentTab === 'inventario'){
+    renderInventarioTab();
+  } else {
+    renderOcupacionTab();
+  }
+}
+
+function renderInventariosTab(){
+  const app = document.getElementById('app');
+  const sortedDifInv = [...difInvSnapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latestDifInv = sortedDifInv[0] || null;
+
+  const esMontoDif = currentMetricDifInv === 'monto';
+  const fmtDif = v => esMontoDif ? '$'+Math.round(v||0).toLocaleString('es-CL') : Math.round(v||0).toLocaleString('es-CL');
+  const fmtFecha = iso => new Date(iso).toLocaleDateString('es-CL', {day:'2-digit', month:'2-digit', year:'2-digit'});
+
+  function tablaDias(dias, titulo){
+    if(!dias || dias.length===0) return `<p style="color:var(--text-faint);font-size:12px">Sin datos.</p>`;
+    return `
+      <div class="strong" style="font-size:12.5px;margin-bottom:6px">${titulo}</div>
+      <table style="font-size:11px">
+        <thead><tr><th>Fecha</th><th class="num">Positivas</th><th class="num">Negativas</th><th class="num">Cuadradas</th><th class="num">Abs.</th></tr></thead>
+        <tbody>
+          ${dias.map(d=>`
+            <tr>
+              <td class="strong">${fmtFecha(d.fecha)}</td>
+              <td class="num" style="color:var(--good)">${fmtDif(esMontoDif?d.sumPosMonto:d.sumPosUnid)}</td>
+              <td class="num" style="color:var(--warn)">${fmtDif(esMontoDif?d.sumNegMonto:d.sumNegUnid)}</td>
+              <td class="num">${d.cuadradas.toLocaleString('es-CL')}</td>
+              <td class="num strong" style="color:var(--amber)">${fmtDif(esMontoDif?d.sumAbsMonto:d.sumAbsUnid)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function tablaTop5(list, titulo, color, key){
+    if(!list || list.length===0) return `<p style="color:var(--text-faint);font-size:12px;margin-top:10px">${titulo}: sin datos.</p>`;
+    const open = expandedTopsDifInv.has(key);
+    const total = list.reduce((s,r)=> s + Math.abs(esMontoDif?r.monto:r.diferencia), 0);
+    return `
+      <div class="exp-row ${open?'open':''}" onclick="toggleTopDifInv('${key}')" style="margin-top:8px">
+        <div class="exp-row-left">
+          <span class="exp-chevron">▶</span>
+          <span class="strong">${titulo}</span>
+        </div>
+        <div class="exp-stats">
+          <span>Códigos<b>${list.length.toLocaleString('es-CL')}</b></span>
+          <span>Suma absoluta<b style="color:${color}">${fmtDif(total)}</b></span>
+        </div>
+      </div>
+      ${open ? `
+      <div class="exp-detail">
+        <table style="font-size:11px">
+          <thead><tr><th>#</th><th>Material</th><th>Descripción</th><th class="num">${esMontoDif?'Monto':'Diferencia'}</th></tr></thead>
+          <tbody>
+            ${list.map((r,i)=>`
+              <tr>
+                <td class="strong">${i+1}</td>
+                <td class="strong" style="color:var(--warn)">${r.material}</td>
+                <td style="white-space:normal;word-break:break-word">${r.descripcion||'—'}</td>
+                <td class="num strong" style="color:${color}">${fmtDif(esMontoDif?r.monto:r.diferencia)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>` : ''}`;
+  }
+
+  const conteosHtml = !latestDifInv ? `
+    <p style="color:var(--text-faint);font-size:12.5px;margin-top:10px">Esperando el archivo. Súbelo en "Controlador del panel" → "Diferencias de inventario CD COL", y revisamos juntos las columnas para armar el cruce.</p>
+  ` : (()=>{
+      const costosDif = (bases && bases.costos) || {};
+      const filteredRowsCajas = filterRowsByDateRange(latestDifInv.rowsCajas||[], filterDifInvDesde, filterDifInvHasta);
+      const filteredRowsPolines = filterRowsByDateRange(latestDifInv.rowsPolines||[], filterDifInvDesde, filterDifInvHasta);
+
+      const diasCajas = summarizeDiferenciasPorPeriodo(filteredRowsCajas, costosDif, 'dia').sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,6);
+      const diasPolines = summarizeDiferenciasPorPeriodo(filteredRowsPolines, costosDif, 'dia').sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,6);
+
+      const tendenciaCajas = {
+        dia: summarizeDiferenciasPorPeriodo(filteredRowsCajas, costosDif, 'dia').slice(-8),
+        semana: summarizeDiferenciasPorPeriodo(filteredRowsCajas, costosDif, 'semana').slice(-8),
+        mes: summarizeDiferenciasPorPeriodo(filteredRowsCajas, costosDif, 'mes').slice(-12)
+      };
+      const tendenciaPolines = {
+        dia: summarizeDiferenciasPorPeriodo(filteredRowsPolines, costosDif, 'dia').slice(-8),
+        semana: summarizeDiferenciasPorPeriodo(filteredRowsPolines, costosDif, 'semana').slice(-8),
+        mes: summarizeDiferenciasPorPeriodo(filteredRowsPolines, costosDif, 'mes').slice(-12)
+      };
+
+      const filtroActivo = filterDifInvDesde || filterDifInvHasta;
+      const ultimosNDias = filtroActivo ? null : 6;
+      const top5NegCajas = topDiferenciasAcumulado(filteredRowsCajas, costosDif, 'negativos', ultimosNDias);
+      const top5PosCajas = topDiferenciasAcumulado(filteredRowsCajas, costosDif, 'positivos', ultimosNDias);
+      const top5AbsCajas = topDiferenciasAcumulado(filteredRowsCajas, costosDif, 'absolutos', ultimosNDias);
+      const top5NegPolines = topDiferenciasAcumulado(filteredRowsPolines, costosDif, 'negativos', ultimosNDias);
+      const top5PosPolines = topDiferenciasAcumulado(filteredRowsPolines, costosDif, 'positivos', ultimosNDias);
+      const top5AbsPolines = topDiferenciasAcumulado(filteredRowsPolines, costosDif, 'absolutos', ultimosNDias);
+
+      const filtroRow = `
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
+          <label style="font-size:12px;color:var(--text-faint)">Desde <input type="date" value="${filterDifInvDesde}" onchange="setFilterDifInvDesde(this.value)" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px;margin-left:4px"></label>
+          <label style="font-size:12px;color:var(--text-faint)">Hasta <input type="date" value="${filterDifInvHasta}" onchange="setFilterDifInvHasta(this.value)" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px;margin-left:4px"></label>
+          ${filtroActivo ? `<button class="btn ghost" onclick="clearFilterDifInvFechas()">Ver acumulado</button><span style="font-size:11.5px;color:var(--amber)">Top 5 acumulado del rango filtrado</span>` : `<span style="font-size:11.5px;color:var(--text-faint)">Top 5 = acumulado de los últimos 6 inventarios</span>`}
+        </div>`;
+
+      const tendenciaRow = `
+        <div class="card-head-row" style="margin-top:16px;margin-bottom:8px">
+          <div class="card-sub" style="margin-bottom:0">Tendencia de diferencias positivas, negativas y absolutas</div>
+          <div class="toggle-group">
+            <button data-g="dia" class="${currentGranularityDifInv==='dia'?'active':''}" onclick="setGranularityDifInv('dia',this)">Día</button>
+            <button data-g="semana" class="${currentGranularityDifInv==='semana'?'active':''}" onclick="setGranularityDifInv('semana',this)">Semana</button>
+            <button data-g="mes" class="${currentGranularityDifInv==='mes'?'active':''}" onclick="setGranularityDifInv('mes',this)">Mes</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:32px;flex-wrap:wrap">
+          <div style="flex:1;min-width:320px">
+            <div class="strong" style="font-size:12.5px;margin-bottom:6px">Cajas (Z031)</div>
+            <div class="chart-box" style="height:220px"><canvas id="difInvTrendCajas"></canvas></div>
+          </div>
+          <div style="flex:1;min-width:320px">
+            <div class="strong" style="font-size:12.5px;margin-bottom:6px">Polines (Z005)</div>
+            <div class="chart-box" style="height:220px"><canvas id="difInvTrendPolines"></canvas></div>
+          </div>
+        </div>`;
+
+      const diasRow = `
+        <div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:20px">
+          <div style="flex:1;min-width:320px">${tablaDias(diasCajas, 'Últimos 6 días — Cajas (Z031)')}</div>
+          <div style="flex:1;min-width:320px">${tablaDias(diasPolines, 'Últimos 6 días — Polines (Z005)')}</div>
+        </div>`;
+
+      const topsRow = `
+        <div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:18px">
+          <div style="flex:1;min-width:320px">
+            <div class="strong" style="font-size:14px;color:var(--text)">Cajas (Z031)</div>
+            ${tablaTop5(top5NegCajas, 'Top 5 más negativos', 'var(--warn)', 'cajas-neg')}
+            ${tablaTop5(top5PosCajas, 'Top 5 más positivos', 'var(--good)', 'cajas-pos')}
+            ${tablaTop5(top5AbsCajas, 'Top 5 diferencia absoluta más alta', 'var(--amber)', 'cajas-abs')}
+          </div>
+          <div style="flex:1;min-width:320px">
+            <div class="strong" style="font-size:14px;color:var(--text)">Polines (Z005)</div>
+            ${tablaTop5(top5NegPolines, 'Top 5 más negativos', 'var(--warn)', 'polines-neg')}
+            ${tablaTop5(top5PosPolines, 'Top 5 más positivos', 'var(--good)', 'polines-pos')}
+            ${tablaTop5(top5AbsPolines, 'Top 5 diferencia absoluta más alta', 'var(--amber)', 'polines-abs')}
+          </div>
+        </div>`;
+
+      window.__difInvTendenciaCajas = tendenciaCajas;
+      window.__difInvTendenciaPolines = tendenciaPolines;
+
+      return filtroRow + tendenciaRow + diasRow + topsRow;
+    })();
+
+  app.innerHTML = tabBarHtml() + `
+    <div class="section-bar fade-in">
+      <div class="section-bar-title"><span class="led"></span> Inventarios — conteos cíclicos, IRA y ajustes</div>
+    </div>
+
+    <div class="card fade-in">
+      <div class="card-head-row">
+        <div>
+          <div class="card-title">Conteos cíclicos</div>
+          <div class="card-sub" style="margin-bottom:0">Diferencias de inventario CD COL (no es el "Dif Inventario" de EWM que ya vemos en Stocks) · costeado con Precio ÷ Cantidad base ("costos")</div>
+        </div>
+        ${latestDifInv ? `<div class="toggle-group">
+          <button data-m="unidades" class="${currentMetricDifInv==='unidades'?'active':''}" onclick="setMetricDifInv('unidades',this)">Unidades</button>
+          <button data-m="monto" class="${currentMetricDifInv==='monto'?'active':''}" onclick="setMetricDifInv('monto',this)">Monto</button>
+        </div>` : ''}
+      </div>
+      ${conteosHtml}
+    </div>
+
+    <div class="two-col section-gap fade-in">
+      <div class="card">
+        <div class="card-title">Inventario IRA</div>
+        <div class="card-sub">Aún por definir</div>
+        <p style="color:var(--text-faint);font-size:12.5px;margin-top:10px">Cuéntame qué es "IRA" en tu proceso y qué archivo lo alimenta.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Ajustes</div>
+        <div class="card-sub">Aún por definir</div>
+        <p style="color:var(--text-faint);font-size:12.5px;margin-top:10px">Cuéntame qué tipo de ajustes quieres ver (de inventario, de costo, etc.) y su origen.</p>
+      </div>
+    </div>
+  `;
+
+  renderDifInvTrendCharts(latestDifInv ? { tendenciaCajas: window.__difInvTendenciaCajas, tendenciaPolines: window.__difInvTendenciaPolines } : null);
+}
+
+function renderEmptyDataPrompt(){
+  const app = document.getElementById('app');
+  app.innerHTML = tabBarHtml() + `
+    <div class="empty fade-in" style="margin-top:24px">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.4"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 7l2-4h14l2 4"/><path d="M9 11h6"/></svg>
+      <h2>Primero carga tus datos</h2>
+      <p>Sube la base de posiciones y al menos un corte de stock desde la pestaña "Carga de datos" para ver los reportes.</p>
+      <button class="btn" onclick="setTab('carga')">Ir a Carga de datos</button>
+    </div>`;
+}
+
+function renderDensidadHtml(latest){
+  const d = latest.densidad;
+  if(!d){
+    return `<p style="color:var(--text-faint);font-size:12.5px">Este corte se cargó con una versión anterior del dashboard y no tiene datos de densidad. Vuelve a subirlo.</p>`;
+  }
+  const modCount = Object.keys((bases&&bases.modulaciones)||{}).length;
+  const buckets = [
+    { key:'b86_100', label:'86–100%', color:'var(--good)', count:d.b86_100 || 0 },
+    { key:'b66_85', label:'66–85%', color:'var(--amber)', count:d.b66_85 || 0 },
+    { key:'b1_65', label:'1–65%', color:'var(--warn)', count:d.b1_65 || 0 }
+  ];
+  const isLegacyBuckets = (d.b86_100===undefined && d.b66_85===undefined && d.b1_65===undefined);
+  const maxCount = Math.max(...buckets.map(b=>b.count), 1);
+
+  return `
+    ${modCount===0 ? `<p style="color:var(--text-faint);font-size:12.5px;margin-bottom:10px">ℹ No se encontró "MODULACION 1" con datos en "Cluster Tipo Material".</p>` : ''}
+    ${isLegacyBuckets ? `<p style="color:var(--text-faint);font-size:12.5px;margin-bottom:10px">ℹ Este corte se calculó con los rangos anteriores. Vuelve a subirlo para ver los rangos 86–100% / 66–85% / 1–65%.</p>` : ''}
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px">
+      <div class="donut-stat-row" style="font-size:12.5px"><span>% Desviación Utilización de Ubicaciones</span><b style="color:var(--warn)">${(d.totalConDato ? ((d.b1_65||0)+(d.b66_85||0))/d.totalConDato*100 : 0).toFixed(1)}%</b></div>
+      <div class="donut-stat-row" style="font-size:12.5px"><span>Sin Modulación</span><b style="color:var(--text-faint)">${(d.sinModulacion||0).toLocaleString('es-CL')}</b></div>
+    </div>
+    ${buckets.map(b=>`
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+        <div style="width:64px;font-size:12px;color:var(--text-dim)">${b.label}</div>
+        <div style="flex:1;background:var(--panel-2);border-radius:5px;height:18px;overflow:hidden">
+          <div style="width:${(b.count/maxCount*100).toFixed(1)}%;background:${b.color};height:100%;border-radius:5px"></div>
+        </div>
+        <div style="width:100px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px" class="strong">${b.count.toLocaleString('es-CL')} UB <span style="color:var(--text-faint);font-weight:400">(${d.totalConDato ? (b.count/d.totalConDato*100).toFixed(1) : '0.0'}%)</span></div>
+      </div>
+    `).join('')}
+    ${(d.b1_65||0)>0 ? `<div style="margin-top:14px"><button class="btn secondary" onclick="exportDensidadBajaDetail()">⬇ Exportar Excel — detalle 1–65%</button></div>` : ''}`;
+}
+
+function renderInventarioTab(){
+  const app = document.getElementById('app');
+  const sorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latest = sorted[0];
+  const fechaLatest = new Date(latest.fecha).toLocaleString('es-CL', {dateStyle:'medium', timeStyle:'short', hour12:false});
+  const inv = latest.inventario;
+
+  if(!inv || !inv.perdida || !inv.giZone || !inv.grZone){
+    app.innerHTML = tabBarHtml() + `
+      <div class="notice-card fade-in" style="background:rgba(232,185,61,.08);border:1px solid rgba(232,185,61,.3);color:#E8B93D">
+        ℹ El corte más reciente se cargó con una versión anterior del dashboard y no tiene los datos de inventario/costo actualizados. Elimínalo en "Carga de datos" y vuelve a subirlo.
+      </div>`;
+    return;
+  }
+
+  const sortedMM = [...mmSnapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const latestMM = sortedMM[0] || null;
+  const fechaLatestMM = latestMM ? new Date(latestMM.fecha).toLocaleString('es-CL', {dateStyle:'medium', timeStyle:'short', hour12:false}) : null;
+
+  const combinedTotalUnidades = inv.totalUnidades + (latestMM ? latestMM.totalUnidades : 0);
+  const combinedTotalMonto = inv.totalCosto + (latestMM ? latestMM.totalMonto : 0);
+
+  const costoDiagHtml = isLegacyCostos(bases) ? `
+    <div class="notice-card fade-in" style="background:rgba(232,185,61,.08);border:1px solid rgba(232,185,61,.3);color:#E8B93D">
+      ℹ No se encontró la pestaña "costos" (o no tiene datos) en tu archivo "Bases Capacidad CD". Los valores de costo se mostrarán en $0 hasta que la agregues y vuelvas a subir la base. Columnas esperadas: Producto, Precio, Cantidad base.
+    </div>` : (inv.sinCostoUnidades>0 ? `
+    <div class="field-note" style="margin-bottom:16px">⚠ ${Math.round(inv.sinCostoUnidades).toLocaleString('es-CL')} unidades no tienen costo unitario definido en la pestaña "costos" (se cuentan en unidades, pero no aportan al costo total).</div>` : '');
+
+  const mmNoticeHtml = !latestMM ? `
+    <div class="field-note" style="margin-bottom:16px">ℹ Sin cortes de Stock MM cargados todavía — el detalle de abajo solo incluye EWM. Súbelos en "Carga de datos" para sumarlos aquí.</div>
+  ` : (fechaLatestMM !== fechaLatest ? `
+    <div class="field-note" style="margin-bottom:16px">Última Actualización: ${fechaLatestMM}</div>
+  ` : '');
+
+  app.innerHTML = tabBarHtml() + `
+    <div class="section-bar fade-in">
+      <div class="section-bar-title"><span class="led"></span> Inventario · corte EWM ${fechaLatest}${latestMM ? ' · corte MM ' + fechaLatestMM : ''}</div>
+    </div>
+
+    ${costoDiagHtml}
+    ${mmNoticeHtml}
+
+    <div class="card fade-in" style="margin-bottom:16px">
+      <div class="card-head-row">
+        <div>
+          <div class="card-title">Stock general CD Colina</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="toggle-group">
+            <button data-g="hora" class="${currentGranularityVirtual==='hora'?'active':''}" onclick="setGranularityVirtual('hora',this)">Hora</button>
+            <button data-g="dia" class="${currentGranularityVirtual==='dia'?'active':''}" onclick="setGranularityVirtual('dia',this)">Día</button>
+            <button data-g="semana" class="${currentGranularityVirtual==='semana'?'active':''}" onclick="setGranularityVirtual('semana',this)">Semana</button>
+          </div>
+          <div class="toggle-group">
+            <button data-m="unidades" class="${currentMetricStockCD==='unidades'?'active':''}" onclick="setMetricStockCD('unidades',this)">Unidades</button>
+            <button data-m="monto" class="${currentMetricStockCD==='monto'?'active':''}" onclick="setMetricStockCD('monto',this)">Monto</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:stretch;margin-top:12px">
+        <div style="flex:1 1 380px;min-width:340px">
+          ${(()=>{
+            const byTipo = { cant:{}, dif:{}, gr:{}, gi:{} };
+            (inv.porMaterial||[]).forEach(m=> byTipo.cant[m.tipo] = { unidades:m.unidades, monto:m.costo });
+            if(latestMM){
+              (latestMM.porMaterial||[]).forEach(m=>{
+                if(!byTipo.cant[m.tipo]) byTipo.cant[m.tipo] = { unidades:0, monto:0 };
+                byTipo.cant[m.tipo].unidades += m.unidades;
+                byTipo.cant[m.tipo].monto += m.monto;
+              });
+            }
+            (inv.perdida.porMaterial||[]).forEach(m=> byTipo.dif[m.tipo] = m);
+            (inv.grZone.porMaterial||[]).forEach(m=> byTipo.gr[m.tipo] = m);
+            (inv.giZone.porMaterial||[]).forEach(m=> byTipo.gi[m.tipo] = m);
+            const tipos = Array.from(new Set([
+              ...Object.keys(byTipo.cant), ...Object.keys(byTipo.dif), ...Object.keys(byTipo.gr), ...Object.keys(byTipo.gi)
+            ])).sort();
+            const val = (obj) => obj ? fmtSG(obj.unidades, obj.monto, currentMetricStockCD) : '—';
+            const valNum = (obj) => obj ? (currentMetricStockCD==='monto' ? obj.monto : obj.unidades) : 0;
+
+            if(tipos.length===0) return `<p style="color:var(--text-faint);font-size:12.5px">Sin datos.</p>`;
+
+            const cantLabel = currentMetricStockCD==='monto' ? 'Monto' : 'Unid.';
+
+            const totalEWM = {
+              cant: { unidades: inv.totalUnidades, monto: inv.totalCosto },
+              dif: { unidades: inv.perdida.totalUnidades, monto: inv.perdida.totalMonto },
+              gr: { unidades: inv.grZone.totalUnidades, monto: inv.grZone.totalMonto },
+              gi: { unidades: inv.giZone.totalUnidades, monto: inv.giZone.totalMonto }
+            };
+            const pctDifEWM = valNum(totalEWM.cant) ? (valNum(totalEWM.dif)/valNum(totalEWM.cant)*100) : 0;
+
+            return `<table style="font-size:10px;table-layout:fixed;width:100%;border-collapse:collapse">
+              <thead><tr>
+                <th style="width:26%;padding:6px 4px">Tipo material</th><th class="num" style="width:16%;padding:6px 4px">${cantLabel}</th><th class="num" style="width:16%;padding:6px 4px">Dif Inv.</th><th class="num" style="width:14%;padding:6px 4px">% Dif.</th><th class="num" style="width:14%;padding:6px 4px">GR</th><th class="num" style="width:14%;padding:6px 4px">GI</th>
+              </tr></thead>
+              <tbody>
+                ${tipos.map(tipo=>{
+                  const cant = byTipo.cant[tipo], dif = byTipo.dif[tipo], gr = byTipo.gr[tipo], gi = byTipo.gi[tipo];
+                  const cantVal = valNum(cant);
+                  const difVal = valNum(dif);
+                  const pctDif = cantVal ? (difVal/cantVal*100) : 0;
+                  return `<tr>
+                    <td class="strong" style="white-space:normal;word-break:break-word;line-height:1.25;padding:6px 4px">${tipo}</td>
+                    <td class="num strong" style="padding:6px 4px">${val(cant)}</td>
+                    <td class="num strong" style="color:var(--warn);padding:6px 4px">${dif ? '-'+val(dif) : '—'}</td>
+                    <td class="num" style="color:var(--warn);padding:6px 4px">${dif ? pctDif.toFixed(1)+'%' : '—'}</td>
+                    <td class="num strong" style="color:var(--good);padding:6px 4px">${val(gr)}</td>
+                    <td class="num strong" style="color:var(--amber);padding:6px 4px">${val(gi)}</td>
+                  </tr>`;
+                }).join('')}
+                <tr style="background:rgba(232,185,61,.28);border-top:2px solid var(--amber)">
+                  <td class="strong" style="padding:7px 4px;color:var(--amber)">TOTAL EWM</td>
+                  <td class="num strong" style="padding:7px 4px;color:var(--amber)">${val(totalEWM.cant)}</td>
+                  <td class="num strong" style="color:var(--warn);padding:7px 4px">-${val(totalEWM.dif)}</td>
+                  <td class="num" style="color:var(--warn);padding:7px 4px">${pctDifEWM.toFixed(1)}%</td>
+                  <td class="num strong" style="color:var(--good);padding:7px 4px">${val(totalEWM.gr)}</td>
+                  <td class="num strong" style="color:var(--amber);padding:7px 4px">${val(totalEWM.gi)}</td>
+                </tr>
+                <tr style="background:rgba(93,173,226,.28);border-top:2px solid #5DADE2">
+                  <td class="strong" style="padding:7px 4px;color:#5DADE2">TOTAL MM</td>
+                  <td class="num strong" style="padding:7px 4px;color:#5DADE2">${latestMM ? fmtSG(latestMM.totalUnidades, latestMM.totalMonto, currentMetricStockCD) : '—'}</td>
+                  <td class="num" style="padding:7px 4px">—</td>
+                  <td class="num" style="padding:7px 4px">—</td>
+                  <td class="num" style="padding:7px 4px">—</td>
+                  <td class="num" style="padding:7px 4px">—</td>
+                </tr>
+              </tbody>
+            </table>`;
+          })()}
+
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <div class="kpi-label">${currentMetricStockCD==='monto' ? 'Costo total del almacén' : 'Unidades totales del almacén'} (EWM${latestMM?' + MM':''})</div>
+            <div class="kpi-value" style="font-size:24px;color:var(--amber)">${fmtSG(combinedTotalUnidades, combinedTotalMonto, currentMetricStockCD)}</div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
+            ${latestMM && latestMM.porAlmacen ? `
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div>
+                <div class="kpi-label" style="color:#9B59B6">Total EX01</div>
+                <div class="kpi-value" style="font-size:20px;color:#9B59B6">${fmtSG(latestMM.porAlmacen.EX01.unidades, latestMM.porAlmacen.EX01.monto, currentMetricStockCD)}</div>
+              </div>
+              <div>
+                <div class="kpi-label" style="color:#E91E8C">Total EX02</div>
+                <div class="kpi-value" style="font-size:20px;color:#E91E8C">${fmtSG(latestMM.porAlmacen.EX02.unidades, latestMM.porAlmacen.EX02.monto, currentMetricStockCD)}</div>
+              </div>
+              <div>
+                <div class="kpi-label" style="color:#E67E22">Tránsito MM</div>
+                <div class="kpi-value" style="font-size:20px;color:#E67E22">${fmtSG(latestMM.transito.unidades, latestMM.transito.monto, currentMetricStockCD)}</div>
+              </div>
+            </div>` : (latestMM ? `<div class="field-note">Este corte MM se cargó con una versión anterior. Vuelve a subirlo para ver el desglose por EX01/EX02.</div>` : '')}
+            ${(inv.pt01Ewm || (latestMM && latestMM.pt01Mm)) ? (()=>{
+              const ewmU = (inv.pt01Ewm&&inv.pt01Ewm.unidades)||0, ewmM = (inv.pt01Ewm&&inv.pt01Ewm.monto)||0;
+              const mmU = (latestMM&&latestMM.pt01Mm&&latestMM.pt01Mm.unidades)||0, mmM = (latestMM&&latestMM.pt01Mm&&latestMM.pt01Mm.monto)||0;
+              const difU = ewmU - mmU, difM = ewmM - mmM;
+              return `
+              <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;min-width:220px">
+                <div class="card-sub" style="margin-bottom:8px">Comparativo PT01 — EWM vs. MM</div>
+                <div class="donut-stats" style="gap:7px">
+                  <div class="donut-stat-row" style="font-size:12.5px;line-height:1.5"><span>PT01 EWM</span><b>${fmtSG(ewmU, ewmM, currentMetricStockCD)}</b></div>
+                  <div class="donut-stat-row" style="font-size:12.5px;line-height:1.5"><span>PT01 MM</span><b>${fmtSG(mmU, mmM, currentMetricStockCD)}</b></div>
+                  <div class="donut-stat-row" style="font-size:12.5px;line-height:1.5;padding-top:7px;border-top:1px solid var(--border)"><span class="strong">EWM − MM</span><b style="color:var(--warn)">${fmtSG(difU, difM, currentMetricStockCD)}</b></div>
+                </div>
+              </div>`;
+            })() : ''}
+          </div>
+
+        </div>
+
+        <div style="flex:1 1 380px;min-width:340px;border-left:1px solid var(--border);padding-left:24px">
+          <div class="card-title" style="margin-bottom:8px">Tendencia de Dif Inventario <span style="font-weight:400;color:var(--text-faint);font-size:12px">· últimos 8 horas/días/semanas</span></div>
+          <div class="chart-box" style="height:280px"><canvas id="virtualTrendCanvas"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card section-gap fade-in">
+      <div class="card-head-row">
+        <div class="card-title">Top 5 Diferencia de Inventario</div>
+        ${(inv.perdida.top5||[]).length>0 ? `<div class="strong" style="font-size:14.5px;font-weight:700;color:var(--text)">Top 5 códigos con mayor Dif Inventario</div>` : ''}
+      </div>
+      ${(inv.perdida.top5||[]).length===0 ? `<p style="color:var(--text-faint);font-size:12.5px;margin-top:6px">Sin Dif Inventario en este corte.</p>` : `
+      <div style="display:flex;gap:40px;flex-wrap:wrap;margin-top:8px">
+        <div style="min-width:200px">
+          <div class="donut-stat-row" style="font-size:13px"><span>Unidades</span><b style="color:var(--warn)">${Math.round(inv.perdida.totalUnidades).toLocaleString('es-CL')}</b></div>
+          <div class="donut-stat-row" style="font-size:13px;margin-top:4px"><span>Valorización</span><b style="color:var(--amber)">$${Math.round(inv.perdida.totalMonto).toLocaleString('es-CL')}</b></div>
+          <div class="donut-stat-row" style="font-size:13px;margin-top:4px"><span>% del valor total CD</span><b style="color:var(--warn)">${inv.perdida.pctSobreTotal.toFixed(1)}%</b></div>
+        </div>
+        <div style="flex:2;min-width:480px;border-left:1px solid var(--border);padding-left:28px">
+          <table style="font-size:11px;table-layout:fixed;width:100%;border-spacing:0">
+            <thead><tr><th style="width:8%;padding:7px 8px">#</th><th style="width:14%;padding:7px 8px">Producto</th><th style="width:38%;padding:7px 8px">Descripción</th><th class="num" style="width:20%;padding:7px 8px">Unidades</th><th class="num" style="width:20%;padding:7px 8px">Valorización</th></tr></thead>
+            <tbody>
+              ${inv.perdida.top5.map((p,i)=>`
+                <tr>
+                  <td class="strong" style="padding:8px">${i+1}</td>
+                  <td class="strong" style="color:var(--warn);padding:8px">${p.producto}</td>
+                  <td style="white-space:normal;word-break:break-word;line-height:1.35;padding:8px">${p.descripcion || '—'}</td>
+                  <td class="num strong" style="padding:8px">${Math.round(p.unidades).toLocaleString('es-CL')}</td>
+                  <td class="num strong" style="color:var(--amber);padding:8px">$${Math.round(p.monto||0).toLocaleString('es-CL')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ${(()=>{
+        const porTipo = inv.perdida.porTipoLista || {};
+        const tiposDisponibles = Object.keys(porTipo);
+        if(tiposDisponibles.length===0) return '';
+        const totalesPorTipo = {};
+        (inv.perdida.porMaterial||[]).forEach(m=> totalesPorTipo[m.tipo] = m);
+        const tiposOrdenados = tiposDisponibles.slice().sort((a,b)=>{
+          const ma = totalesPorTipo[a] ? totalesPorTipo[a].monto : 0;
+          const mb = totalesPorTipo[b] ? totalesPorTipo[b].monto : 0;
+          return mb - ma;
+        });
+        return `
+        <div class="card-head-row" style="margin-top:18px;margin-bottom:8px;align-items:flex-end">
+          <div class="strong" style="font-size:14.5px;font-weight:700;color:var(--text)">Códigos con Dif Inventario por tipo de material <span style="font-weight:400;color:var(--text-faint);font-size:12px">— haz clic en un tipo para ver el detalle</span></div>
+          <button class="btn secondary" onclick="exportDifInventarioDetail()">⬇ Exportar Excel — todos los códigos</button>
+        </div>
+        ${tiposOrdenados.map(tipo=>{
+          const tot = totalesPorTipo[tipo] || {unidades:0, monto:0};
+          const open = expandedTiposPerdida.has(tipo);
+          const lista = porTipo[tipo] || [];
+          return `
+          <div class="exp-row ${open?'open':''}" onclick="toggleTipoPerdida('${tipo.replace(/'/g,"\\'")}')">
+            <div class="exp-row-left">
+              <span class="exp-chevron">▶</span>
+              <span class="strong">${tipo}</span>
+            </div>
+            <div class="exp-stats">
+              <span>Códigos<b>${lista.length.toLocaleString('es-CL')}</b></span>
+              <span>Unidades<b>${Math.round(tot.unidades).toLocaleString('es-CL')}</b></span>
+              <span>Valorización<b style="color:var(--amber)">$${Math.round(tot.monto).toLocaleString('es-CL')}</b></span>
+            </div>
+          </div>
+          ${open ? `
+          <div class="exp-detail">
+            <table>
+              <thead><tr><th>#</th><th>Producto</th><th>Descripción</th><th class="num">Unidades</th><th class="num">Valorización</th></tr></thead>
+              <tbody>
+                ${lista.map((p,i)=>`
+                  <tr>
+                    <td class="strong">${i+1}</td>
+                    <td class="strong" style="color:var(--warn)">${p.producto}</td>
+                    <td>${p.descripcion || '—'}</td>
+                    <td class="num">${Math.round(p.unidades).toLocaleString('es-CL')}</td>
+                    <td class="num strong" style="color:var(--amber)">$${Math.round(p.monto||0).toLocaleString('es-CL')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>` : ''}`;
+        }).join('')}`;
+      })()}`}
+    </div>
+
+    <div class="card section-gap fade-in">
+      <div class="card-head-row">
+        <div class="card-title">Stock Inmovilizados <span style="font-weight:400;color:var(--text-faint);font-size:12px">(más de 6 meses en CD)</span></div>
+        ${(latest.inmovilizado && (latest.inmovilizado.top5Estacionalidad||[]).length>0) ? `<div class="strong" style="font-size:14.5px;font-weight:700;color:var(--text)">Top 5 códigos con más días inmovilizados</div>` : ''}
+      </div>
+      ${ !latest.inmovilizado
+        ? `<p style="color:var(--text-faint);font-size:12.5px;margin-top:6px">Este corte se cargó con una versión anterior del dashboard y no tiene este dato. Vuelve a subirlo.</p>`
+        : (()=>{
+            const inmo = latest.inmovilizado;
+            const pctSobreValorCD = combinedTotalMonto ? (inmo.monto||0)/combinedTotalMonto*100 : 0;
+            return `<div style="display:flex;gap:40px;flex-wrap:wrap;margin-top:8px">
+                <div style="min-width:200px">
+                  <div class="donut-stat-row" style="font-size:13px"><span>Ubicaciones</span><b style="color:var(--warn)">${inmo.ubicaciones.toLocaleString('es-CL')}</b></div>
+                  <div class="donut-stat-row" style="font-size:13px;margin-top:4px"><span>Unidades</span><b>${Math.round(inmo.unidades).toLocaleString('es-CL')}</b></div>
+                  <div class="donut-stat-row" style="font-size:13px;margin-top:4px"><span>Valorización</span><b style="color:var(--amber)">$${Math.round(inmo.monto||0).toLocaleString('es-CL')}</b></div>
+                  <div class="donut-stat-row" style="font-size:13px;margin-top:4px"><span>% del valor total CD</span><b style="color:var(--warn)">${pctSobreValorCD.toFixed(1)}%</b></div>
+                  ${(inmo.rawRows||[]).length>0 ? `<div style="margin-top:10px"><button class="btn secondary" onclick="exportInmovilizadoDetail()">⬇ Exportar detalle (Excel)</button></div>` : ''}
+                </div>
+                ${(inmo.top5Estacionalidad||[]).length>0 ? `
+                <div style="flex:2;min-width:480px;border-left:1px solid var(--border);padding-left:28px">
+                  <table style="font-size:11px;table-layout:fixed;width:100%;border-spacing:0">
+                    <thead><tr><th style="width:6%;padding:7px 8px">#</th><th style="width:12%;padding:7px 8px">Producto</th><th style="width:32%;padding:7px 8px">Descripción</th><th class="num" style="width:12%;padding:7px 8px">Días</th><th class="num" style="width:14%;padding:7px 8px">Unid.</th><th class="num" style="width:10%;padding:7px 8px">Ubic.</th><th class="num" style="width:14%;padding:7px 8px">Valor.</th></tr></thead>
+                    <tbody>
+                      ${inmo.top5Estacionalidad.map((p,i)=>`
+                        <tr>
+                          <td class="strong" style="padding:8px">${i+1}</td>
+                          <td class="strong" style="color:var(--warn);padding:8px">${p.producto}</td>
+                          <td style="white-space:normal;word-break:break-word;line-height:1.35;padding:8px">${p.descripcion || '—'}</td>
+                          <td class="num strong" style="padding:8px">${p.diasEstacionado.toLocaleString('es-CL')}</td>
+                          <td class="num" style="padding:8px">${Math.round(p.unidades).toLocaleString('es-CL')}</td>
+                          <td class="num" style="padding:8px">${p.ubicaciones.toLocaleString('es-CL')}</td>
+                          <td class="num strong" style="color:var(--amber);padding:8px">$${Math.round(p.monto||0).toLocaleString('es-CL')}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>` : ''}
+              </div>
+              ${inmo.ubicaciones===0 ? `<p style="color:var(--text-faint);font-size:12.5px;margin-top:14px">Sin stock inmovilizado en Z001, Z002 o Z003 para este corte.</p>` : (()=>{
+                  const porTipo = inmo.estacionalidadPorTipo || {};
+                  const tiposDisponibles = Object.keys(porTipo);
+                  if(tiposDisponibles.length===0) return '';
+                  const totalesPorTipo = {};
+                  (inmo.porMaterial||[]).forEach(m=> totalesPorTipo[m.tipo] = m);
+                  const tiposOrdenados = tiposDisponibles.slice().sort((a,b)=>{
+                    const ma = totalesPorTipo[a] ? totalesPorTipo[a].monto : 0;
+                    const mb = totalesPorTipo[b] ? totalesPorTipo[b].monto : 0;
+                    return mb - ma;
+                  });
+                  return `
+                  <div class="strong" style="font-size:14.5px;font-weight:700;color:var(--text);margin-top:18px;margin-bottom:8px">Códigos inmovilizados por tipo de material <span style="font-weight:400;color:var(--text-faint);font-size:12px">— haz clic en un tipo para ver el detalle</span></div>
+                  ${tiposOrdenados.map((tipo, idx)=>{
+                    const tot = totalesPorTipo[tipo] || {ubicaciones:0, unidades:0, monto:0};
+                    const open = expandedTiposInmo.has(tipo);
+                    const lista = porTipo[tipo] || [];
+                    return `
+                    <div class="exp-row ${open?'open':''}" onclick="toggleTipoInmo('${tipo.replace(/'/g,"\\'")}')">
+                      <div class="exp-row-left">
+                        <span class="exp-chevron">▶</span>
+                        <span class="placard" style="min-width:20px;text-align:center">${idx+1}</span>
+                        <span class="strong">${tipo}</span>
+                      </div>
+                      <div class="exp-stats">
+                        <span>Códigos inmovilizados<b>${lista.length.toLocaleString('es-CL')}</b></span>
+                        <span>Ubicaciones<b>${tot.ubicaciones.toLocaleString('es-CL')}</b></span>
+                        <span>Unidades<b>${Math.round(tot.unidades).toLocaleString('es-CL')}</b></span>
+                        <span>Valorización<b style="color:var(--amber)">$${Math.round(tot.monto).toLocaleString('es-CL')}</b></span>
+                      </div>
+                    </div>
+                    ${open ? `
+                    <div class="exp-detail">
+                      <table>
+                        <thead><tr><th>#</th><th>Producto</th><th>Descripción</th><th class="num">Días estacionado</th><th class="num">Unidades</th><th class="num">Ubicaciones</th><th class="num">Valorización</th></tr></thead>
+                        <tbody>
+                          ${lista.map((p,i)=>`
+                            <tr>
+                              <td class="strong">${i+1}</td>
+                              <td class="strong" style="color:var(--warn)">${p.producto}</td>
+                              <td>${p.descripcion || '—'}</td>
+                              <td class="num strong">${p.diasEstacionado.toLocaleString('es-CL')}</td>
+                              <td class="num">${Math.round(p.unidades).toLocaleString('es-CL')}</td>
+                              <td class="num">${p.ubicaciones.toLocaleString('es-CL')}</td>
+                              <td class="num strong" style="color:var(--amber)">$${Math.round(p.monto||0).toLocaleString('es-CL')}</td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                    </div>` : ''}`;
+                  }).join('')}`;
+                })()
+              }`;
+          })()
+      }
+    </div>
+
+    <div class="card section-gap fade-in" id="unmatchedSection">
+      <div class="card-head-row">
+        <div>
+          <div class="card-title">Ubicaciones Virtuales</div>
+          <div class="card-sub" style="margin-bottom:0">Ubicaciones con stock que no existen en la base de posiciones — zonas de tránsito o ficticias, y posiciones nuevas sin registrar. Corte: ${fechaLatest}</div>
+        </div>
+        <div class="toggle-group">
+          <button data-m="unidades" class="${currentMetricStockCD==='unidades'?'active':''}" onclick="setMetricStockCD('unidades',this)">Unidades</button>
+          <button data-m="monto" class="${currentMetricStockCD==='monto'?'active':''}" onclick="setMetricStockCD('monto',this)">Monto</button>
+        </div>
+      </div>
+
+      ${ latest.noEncontradas === 0
+        ? `<div class="status-msg ok" style="display:inline-block">✓ Todas las ubicaciones del stock coinciden con la base de posiciones.</div>`
+        : !Array.isArray(latest.unmatchedDetail) || latest.unmatchedDetail.length === 0
+        ? `<div class="status-msg err" style="display:inline-block">Este corte tiene ${latest.noEncontradas} ubicación(es) sin calzar, pero se cargó con una versión anterior que no guardó el detalle. Vuelve a subirlo para verlo aquí.</div>`
+        : (()=>{
+            const esMonto = currentMetricStockCD === 'monto';
+            const tiposSet = new Set();
+            latest.unmatchedDetail.forEach(u => Object.keys(u.porTipo||{}).forEach(t=>tiposSet.add(t)));
+            const tipos = Array.from(tiposSet).sort((a,b)=>{
+              const totalA = latest.unmatchedDetail.reduce((s,u)=> s+((u.porTipo||{})[a]||0), 0);
+              const totalB = latest.unmatchedDetail.reduce((s,u)=> s+((u.porTipo||{})[b]||0), 0);
+              return totalB - totalA;
+            });
+            const fmtCell = v => esMonto ? '$'+Math.round(v||0).toLocaleString('es-CL') : Math.round(v||0).toLocaleString('es-CL');
+            return `<div style="overflow-x:auto"><table>
+            <thead><tr>
+              <th>Ubicación</th>
+              ${tipos.map(t=>`<th class="num th-tipo">${t}</th>`).join('')}
+              <th class="num">${esMonto ? 'Monto Total' : 'Unidades totales'}</th><th class="num">SKU distintos</th>
+            </tr></thead>
+            <tbody>
+              ${latest.unmatchedDetail.map(u=>`
+                <tr>
+                  <td class="strong" style="color:var(--warn)">${u.ubicacion}</td>
+                  ${tipos.map(t=>{
+                    const v = esMonto ? (u.porTipoMonto||{})[t] : (u.porTipo||{})[t];
+                    return `<td class="num">${v ? fmtCell(v) : '—'}</td>`;
+                  }).join('')}
+                  <td class="num strong">${fmtCell(esMonto ? u.montoTotal : u.ctdTotal)}</td>
+                  <td class="num">${u.skuCount}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table></div>
+          <div class="field-note">"${esMonto?'Monto Total':'Unidades totales'}" suma ${esMonto?'la valorización (Precio ÷ Cantidad base) de':'la columna Ctd. de'} todas las filas de stock en esa ubicación${esMonto?'':', sin importar la unidad de medida'} — útil como referencia de magnitud, no como cifra homologada entre productos. El desglose por columna usa el "TIPO MATERIAL" del producto (pestaña "Cluster Tipo Material").</div>`;
+          })()
+      }
+    </div>
+  `;
+
+  renderVirtualTrendChart();
+}
+
+function renderCargaDatosTab(){
+  const app = document.getElementById('app');
+  const sorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const sortedMM = [...mmSnapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+
+  const basesCardHtml = bases ? `
+    <div class="status-msg ok" style="display:inline-block">✓ ${bases.locations.length.toLocaleString('es-CL')} ubicaciones · ${bases.fileName}</div>
+    <div class="field-note">Cargado el ${new Date(bases.uploadedAt).toLocaleString('es-CL', {hour12:false})}</div>
+  ` : `<p style="color:var(--text-faint);font-size:12.5px">Aún no se ha cargado la base de posiciones.</p>`;
+
+  const stockCardHtml = snapshots.length ? `
+    <div class="status-msg ok" style="display:inline-block">✓ ${snapshots.length} corte${snapshots.length>1?'s':''} cargado${snapshots.length>1?'s':''} · ~${formatKB(sorted)} KB guardados</div>
+  ` : `<p style="color:var(--text-faint);font-size:12.5px">Aún no se ha cargado ningún corte de stock.</p>`;
+
+  const stockMMCardHtml = mmSnapshots.length ? `
+    <div class="status-msg ok" style="display:inline-block">✓ ${mmSnapshots.length} corte${mmSnapshots.length>1?'s':''} MM cargado${mmSnapshots.length>1?'s':''} · ~${formatKB(sortedMM)} KB guardados</div>
+  ` : `<p style="color:var(--text-faint);font-size:12.5px">Aún no se ha cargado ningún corte MM.</p>`;
+
+  const sortedDifInv = [...difInvSnapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const difInvCardHtml = difInvSnapshots.length ? `
+    <div class="status-msg ok" style="display:inline-block">✓ ${difInvSnapshots.length} archivo${difInvSnapshots.length>1?'s':''} cargado${difInvSnapshots.length>1?'s':''} · ~${formatKB(sortedDifInv)} KB guardados</div>
+  ` : `<p style="color:var(--text-faint);font-size:12.5px">Aún no se ha cargado ningún archivo.</p>`;
+
+  const latestForDiag = sorted[0] || null;
+  const noClusterCountDiag = latestForDiag ? (latestForDiag.noClusterizados||[]).length : 0;
+  const noEncontradasCountDiag = latestForDiag ? latestForDiag.noEncontradas : 0;
+  const sinCostoCountDiag = latestForDiag ? (latestForDiag.inventario && latestForDiag.inventario.sinCosto ? latestForDiag.inventario.sinCosto.length : 0) : 0;
+  const latestMMForDiag = sortedMM[0] || null;
+  const noClusterCountDiagMM = latestMMForDiag ? (latestMMForDiag.noClusterizados||[]).length : 0;
+  const sinCostoCountDiagMM = latestMMForDiag ? (latestMMForDiag.sinCosto||[]).length : 0;
+
+  app.innerHTML = tabBarHtml() + `
+    <div class="section-bar fade-in">
+      <div class="section-bar-title"><span class="led"></span> Controlador del panel — carga de datos y diagnósticos</div>
+    </div>
+
+    <div class="two-col fade-in">
+      <div class="card">
+        <div class="card-title">Base de posiciones y zonas</div>
+        <div class="card-sub">Archivo "Bases Capacidad CD" — pestañas "Base de posiciones", "TIPO ZONA" y "Cluster Tipo Material". Se actualiza pocas veces.</div>
+        ${basesCardHtml}
+        <div style="margin-top:16px"><button class="btn" onclick="openModal('bases')">⟳ Cargar / actualizar bases</button></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Cortes de stock (EWM)</div>
+        <div class="card-sub">Archivos EXPORT_AAAAMMDD_HHMMSS.xlsx — pestaña "Data". Alimenta Ocupación e Inventario.</div>
+        ${stockCardHtml}
+        <div style="margin-top:16px"><button class="btn" onclick="openModal('stock')">⟳ Cargar corte de stock</button></div>
+      </div>
+    </div>
+
+    <div class="card section-gap fade-in">
+      <div class="card-title">Códigos SIN INFORMACIÓN</div>
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;margin-top:6px">
+        <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:12px 18px;min-width:150px">
+          <div class="kpi-label">Sin clusterizar (EWM)</div>
+          <div class="kpi-value" style="font-size:24px;color:var(--warn)">${noClusterCountDiag.toLocaleString('es-CL')}</div>
+        </div>
+        <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:12px 18px;min-width:150px">
+          <div class="kpi-label">Sin clusterizar (MM)</div>
+          <div class="kpi-value" style="font-size:24px;color:#5DADE2">${noClusterCountDiagMM.toLocaleString('es-CL')}</div>
+        </div>
+        <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:12px 18px;min-width:150px">
+          <div class="kpi-label">Ubicaciones no reconocidas</div>
+          <div class="kpi-value" style="font-size:24px;color:var(--warn)">${noEncontradasCountDiag.toLocaleString('es-CL')}</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${(noClusterCountDiag>0 || noClusterCountDiagMM>0) ? `<button class="btn secondary" onclick="exportNoClusterizados()">⬇ Sin clusterizar EWM + MM (CSV)</button>` : ''}
+          ${!latestForDiag && !latestMMForDiag ? `<p style="color:var(--text-faint);font-size:12.5px;margin:0">Sube un corte de stock para ver este diagnóstico.</p>` : ''}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:12px 18px;min-width:150px">
+          <div class="kpi-label">Sin costo (EWM)</div>
+          <div class="kpi-value" style="font-size:24px;color:var(--warn)">${sinCostoCountDiag.toLocaleString('es-CL')}</div>
+        </div>
+        <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:12px 18px;min-width:150px">
+          <div class="kpi-label">Sin costo (MM)</div>
+          <div class="kpi-value" style="font-size:24px;color:#5DADE2">${sinCostoCountDiagMM.toLocaleString('es-CL')}</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${(sinCostoCountDiag>0 || sinCostoCountDiagMM>0) ? `<button class="btn secondary" onclick="exportSinCosto()">⬇ Sin costo EWM + MM (CSV)</button>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="card section-gap fade-in">
+      <div class="card-title">Cortes de stock MM</div>
+      <div class="card-sub">Fuente adicional sin ubicaciones (Centro, Almacén, Material, Libre utilización, Valor libre util.) — solo alimenta Inventario, no afecta Ocupación.</div>
+      ${stockMMCardHtml}
+      <div style="margin-top:16px"><button class="btn" onclick="openModal('stockMM')">⟳ Cargar corte MM</button></div>
+    </div>
+
+    <div class="card section-gap fade-in">
+      <div class="card-title">Diferencias de inventario CD COL</div>
+      <div class="card-sub">Solo pestañas "Z031" (Inventario Cajas) y "Z005" (Inventario Polines) — alimenta la pestaña Inventarios.</div>
+      ${difInvCardHtml}
+      <div style="margin-top:16px"><button class="btn" onclick="openModal('difInv')">⟳ Cargar archivo</button></div>
+    </div>
+
+    ${difInvSnapshots.length ? `
+    <div class="card section-gap fade-in">
+      <div class="card-title">Historial — Diferencias de inventario</div>
+      <div class="card-sub">Todos los archivos cargados hasta ahora · ~${formatKB(sortedDifInv)} KB guardados.</div>
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Archivo</th><th class="num">Filas Cajas</th><th class="num">Filas Polines</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${sortedDifInv.map(s=>`
+            <tr>
+              <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
+              <td>${s.fileName}</td>
+              <td class="num">${s.cajasCount.toLocaleString('es-CL')}</td>
+              <td class="num">${s.polinesCount.toLocaleString('es-CL')}</td>
+              <td style="text-align:right"><button class="btn ghost" onclick="deleteDifInvSnapshot('${s.id}')">Eliminar</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn secondary" onclick="openModal('difInv')">+ Cargar otro archivo</button>
+        ${confirmClearDifInv
+          ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${difInvSnapshots.length} archivos? No se puede deshacer.</span>
+             <button class="btn" style="background:var(--warn);color:#fff" onclick="clearAllDifInvSnapshots()">Sí, vaciar</button>
+             <button class="btn ghost" onclick="cancelClearDifInv()">Cancelar</button>`
+          : `<button class="btn ghost" onclick="requestClearDifInv()">Vaciar historial completo</button>`
+        }
+      </div>
+    </div>` : ''}
+
+    ${snapshots.length ? `
+    <div class="card section-gap fade-in">
+      <div class="card-title">Historial de cortes EWM</div>
+      <div class="card-sub">Todos los cortes de stock EWM cargados hasta ahora · ~${formatKB(sorted)} KB guardados (máx. recomendado ~4000 KB).</div>
+      <table>
+        <thead><tr>
+          <th>Fecha del corte</th><th>Archivo</th><th class="num">Ocupadas</th><th class="num">Total</th><th class="num">% Ocupación</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${sorted.map(s=>`
+            <tr>
+              <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
+              <td>${s.fileName}</td>
+              <td class="num">${s.ocupadas.toLocaleString('es-CL')}</td>
+              <td class="num">${s.totalUbicaciones.toLocaleString('es-CL')}</td>
+              <td class="num strong">${(s.pct*100).toFixed(1)}%</td>
+              <td style="text-align:right"><button class="btn ghost" onclick="deleteSnapshot('${s.id}')">Eliminar</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn secondary" onclick="openModal('stock')">+ Cargar otro corte</button>
+        ${confirmClearEWM
+          ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${snapshots.length} cortes EWM? No se puede deshacer.</span>
+             <button class="btn" style="background:var(--warn);color:#fff" onclick="clearAllSnapshots()">Sí, vaciar</button>
+             <button class="btn ghost" onclick="cancelClearEWM()">Cancelar</button>`
+          : `<button class="btn ghost" onclick="requestClearEWM()">Vaciar historial EWM completo</button>`
+        }
+      </div>
+    </div>` : ''}
+
+    ${mmSnapshots.length ? `
+    <div class="card section-gap fade-in">
+      <div class="card-title">Historial de cortes MM</div>
+      <div class="card-sub">Todos los cortes MM cargados hasta ahora · ~${formatKB(sortedMM)} KB guardados.</div>
+      <table>
+        <thead><tr>
+          <th>Fecha del corte</th><th>Archivo</th><th class="num">Unidades</th><th class="num">Monto</th><th class="num">Excluidos LI</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${sortedMM.map(s=>`
+            <tr>
+              <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
+              <td>${s.fileName}</td>
+              <td class="num">${Math.round(s.totalUnidades).toLocaleString('es-CL')}</td>
+              <td class="num strong">$${Math.round(s.totalMonto).toLocaleString('es-CL')}</td>
+              <td class="num">${s.excludedLI.toLocaleString('es-CL')}</td>
+              <td style="text-align:right"><button class="btn ghost" onclick="deleteMMSnapshot('${s.id}')">Eliminar</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn secondary" onclick="openModal('stockMM')">+ Cargar otro corte MM</button>
+        ${confirmClearMM
+          ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${mmSnapshots.length} cortes MM? No se puede deshacer.</span>
+             <button class="btn" style="background:var(--warn);color:#fff" onclick="clearAllMMSnapshots()">Sí, vaciar</button>
+             <button class="btn ghost" onclick="cancelClearMM()">Cancelar</button>`
+          : `<button class="btn ghost" onclick="requestClearMM()">Vaciar historial MM completo</button>`
+        }
+      </div>
+    </div>` : ''}
+
+    <div class="card section-gap fade-in">
+      <div class="card-title">Respaldo manual</div>
+      <div class="card-sub">Si el guardado automático falla, exporta un archivo de respaldo con tus datos actuales, o importa uno guardado antes.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn secondary" onclick="exportBackup()">⬇ Exportar respaldo</button>
+        <button class="btn secondary" onclick="document.getElementById('fileImport').click()">⬆ Importar respaldo</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderOcupacionTab(){
+  const app = document.getElementById('app');
+
+  if(!bases){
+    app.innerHTML = tabBarHtml() + `
+      <div class="empty fade-in" style="margin-top:24px">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.4"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 7l2-4h14l2 4"/><path d="M9 11h6"/></svg>
+        <h2>Empieza cargando la base de posiciones</h2>
+        <p>Sube el archivo "Bases Capacidad CD" para definir el universo de ubicaciones del centro de distribución.</p>
+        <button class="btn" onclick="openModal('bases')">Cargar base de posiciones</button>
+      </div>`;
+    return;
+  }
+  if(snapshots.length === 0){
+    app.innerHTML = tabBarHtml() + `
+      <div class="empty fade-in" style="margin-top:24px">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.4"><path d="M4 19h16M6 19V9m4 10V5m4 14v-7m4 7v-3"/></svg>
+        <h2>Ahora sube un corte de stock</h2>
+        <p>Con la base cargada (${bases.locations.length.toLocaleString('es-CL')} ubicaciones), sube uno o más archivos EXPORT de stock para calcular la ocupación.</p>
+        <button class="btn" onclick="openModal('stock')">Cargar corte de stock</button>
+      </div>`;
+    return;
+  }
+
+  const allSorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  const weekKeys = Array.from(new Set(allSorted.map(s=>getWeekKey(s.fecha)))).sort((a,b)=> new Date(b)-new Date(a));
+  let sorted = allSorted;
+  if(filterSemana !== 'ALL'){
+    const filtered = allSorted.filter(s=> getWeekKey(s.fecha) === filterSemana);
+    if(filtered.length > 0) sorted = filtered;
+  }
+  const latest = sorted[0];
+  const prevIdx = allSorted.findIndex(s=>s.id===latest.id) + 1;
+  const prev = allSorted[prevIdx];
+  const pctNow = latest.pct*100;
+
+  let deltaHtml = `<div class="kpi-delta kpi-delta-lg flat">— Sin corte anterior</div>`;
+  if(prev){
+    if(prev.pct > 0){
+      const deltaRelPct = ((latest.pct - prev.pct)/prev.pct)*100;
+      // Ocupación en alza = menos espacio libre → rojo. Ocupación a la baja = más espacio libre → verde.
+      const cls = deltaRelPct > 0.05 ? 'down' : (deltaRelPct < -0.05 ? 'up' : 'flat');
+      const arrow = deltaRelPct > 0.05 ? '▲' : (deltaRelPct < -0.05 ? '▼' : '＝');
+      deltaHtml = `<div class="kpi-delta kpi-delta-lg ${cls}">${arrow} ${Math.abs(deltaRelPct).toFixed(1)}% variación vs. corte anterior</div>`;
+    } else {
+      deltaHtml = `<div class="kpi-delta kpi-delta-lg flat">— Corte anterior con 0% ocupación</div>`;
+    }
+  }
+
+  let deltaUbic = null;
+  if(prev) deltaUbic = latest.ocupadas - prev.ocupadas;
+  const deltaUbicHtml = deltaUbic !== null
+    ? `<div class="kpi-foot kpi-foot-lg" style="color:${deltaUbic>0?'var(--warn)':(deltaUbic<0?'var(--good)':'var(--text-faint)')}">${Math.abs(deltaUbic).toLocaleString('es-CL')} ${deltaUbic>0?'Ub. Ocupadas':(deltaUbic<0?'Ubicaciones Liberadas':'sin cambio')}</div>` : '';
+
+  const vacias = latest.totalUbicaciones - latest.ocupadas;
+  const vaciasHtml = `<div class="kpi-foot kpi-foot-lg">${vacias.toLocaleString('es-CL')} ubicaciones vacías</div>`;
+
+  const zones = Object.keys(latest.zonaStats).sort();
+  const pasillosDisponibles = filterZona==='ALL'
+    ? [...new Set(Object.values(latest.pasilloStats).map(p=>p.pasillo))].filter(Boolean).sort()
+    : [...new Set(Object.values(latest.pasilloStats).filter(p=>p.zonaCD===filterZona).map(p=>p.pasillo))].filter(Boolean).sort();
+
+  const fechaLatest = new Date(latest.fecha).toLocaleString('es-CL', {dateStyle:'medium', timeStyle:'short', hour12:false});
+  const donutColors = zones.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]);
+
+  app.innerHTML = tabBarHtml() + `
+    <div class="section-bar fade-in">
+      <div class="section-bar-title"><span class="led"></span> Estado general del CD · corte ${fechaLatest}</div>
+      <div class="filter-group">
+        <label>Filtrar</label>
+        <select class="filter-select" onchange="setFilterSemana(this.value)">
+          <option value="ALL" ${filterSemana==='ALL'?'selected':''}>Todas las semanas</option>
+          ${weekKeys.map(w=>`<option value="${w}" ${filterSemana===w?'selected':''}>${getWeekLabel(w)}</option>`).join('')}
+        </select>
+        <select class="filter-select" onchange="setFilterZona(this.value)">
+          <option value="ALL" ${filterZona==='ALL'?'selected':''}>Todas las zonas</option>
+          ${zones.map(z=>`<option value="${z}" ${filterZona===z?'selected':''}>${z} · ${zonaName(z)}</option>`).join('')}
+        </select>
+        <select class="filter-select" onchange="setFilterPasillo(this.value)">
+          <option value="ALL" ${filterPasillo==='ALL'?'selected':''}>Todos los pasillos</option>
+          ${pasillosDisponibles.map(p=>`<option value="${p}" ${filterPasillo===p?'selected':''}>Pasillo ${p}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    ${isLegacySnapshot(latest) ? `
+      <div class="notice-card fade-in" style="background:rgba(232,185,61,.08);border:1px solid rgba(232,185,61,.3);color:#E8B93D">
+        ℹ El corte más reciente se cargó con una versión anterior del dashboard — la variación en unidades y el desglose por tipo de material no están disponibles hasta que lo vuelvas a subir (bórralo en el historial y vuelve a cargarlo).
+      </div>` : ''}
+
+    ${latest.totalUbicaciones===0 ? `
+      <div class="notice-card fade-in" style="background:rgba(226,102,95,.1);border:1px solid rgba(226,102,95,.35);color:#E2665F">
+        ⚠ No se encontró ninguna ubicación con USO = "ALMACENAJE" en tu base de posiciones. Revisa que la columna "USO" exista y que ese valor esté escrito exactamente así — si no, dime cómo se llama en tu archivo para ajustarlo.
+      </div>` : ''}
+
+    <div class="top-row fade-in">
+      <div class="kpi" style="justify-content:flex-start;gap:28px">
+        <div>
+          <div class="card-title">Ocupación general</div>
+          <div class="kpi-value" style="font-size:38px">${pctNow.toFixed(1)}<span class="unit">%</span></div>
+          ${(latest.porUso||[]).length>0 ? `
+          <div class="donut-stats" style="margin-top:8px;min-width:190px">
+            ${(()=>{
+              const totalUB = latest.porUso.reduce((s,u)=>s+u.total,0);
+              const totalOcup = latest.porUso.reduce((s,u)=>s+u.ocupadas,0);
+              const pctTotal = totalUB ? totalOcup/totalUB*100 : 0;
+              return `<div class="donut-stat-row" style="font-size:12.5px;padding-bottom:4px;border-bottom:1px solid var(--border)"><span class="strong">Total</span><b>${totalUB.toLocaleString('es-CL')} UB ${pctTotal.toFixed(1)}%</b></div>`;
+            })()}
+            ${latest.porUso.map(u=>`<div class="donut-stat-row" style="font-size:12.5px;margin-top:4px"><span>${u.uso}</span><b>${u.total.toLocaleString('es-CL')} UB ${u.pct.toFixed(1)}%</b></div>`).join('')}
+          </div>` : ''}
+        </div>
+        <div>
+          <div class="card-title">Kardex de ubicaciones</div>
+          ${deltaHtml}
+          ${deltaUbicHtml}
+        </div>
+      </div>
+      <div class="card trend-card">
+        <div class="card-head-row">
+          <div>
+            <div class="card-title">Tendencia de ocupación</div>
+            <div class="card-sub">En base a Ubicaciones de Almacenaje</div>
+          </div>
+          <div class="toggle-group">
+            <button data-g="hora" class="${currentGranularity==='hora'?'active':''}" onclick="setGranularity('hora',this)">Hora</button>
+            <button data-g="dia" class="${currentGranularity==='dia'?'active':''}" onclick="setGranularity('dia',this)">Día</button>
+            <button data-g="semana" class="${currentGranularity==='semana'?'active':''}" onclick="setGranularity('semana',this)">Semana</button>
+            <button data-g="mes" class="${currentGranularity==='mes'?'active':''}" onclick="setGranularity('mes',this)">Mes</button>
+          </div>
+        </div>
+        <div class="chart-box" style="height:300px"><canvas id="trendChartCanvas"></canvas></div>
+      </div>
+    </div>
+
+    <div class="two-col fade-in">
+      <div class="card">
+        <div class="card-title">Capacidades por Zona</div>
+        <div class="card-sub">En base a Ubicaciones de Almacenaje</div>
+        <div class="donut-row">
+          <div class="donut-chart-box"><canvas id="zoneDonutCanvas"></canvas></div>
+          <div class="donut-legend">
+            ${zones.map((z,i)=>{
+              const zs = latest.zonaStats[z];
+              const vacias = zs.total - zs.ocupadas;
+              const pct = zs.total ? (zs.ocupadas/zs.total*100) : 0;
+              return `
+              <div class="donut-legend-item">
+                <span class="donut-dot" style="background:${donutColors[i]}"></span>
+                <div style="min-width:0">
+                  <div class="donut-legend-code">${z}</div>
+                  <div class="donut-stats" style="max-width:200px">
+                    <div class="donut-stat-row"><span>Ubicaciones</span><b>${zs.total.toLocaleString('es-CL')}</b></div>
+                    <div class="donut-stat-row"><span>Ocupadas</span><b>${zs.ocupadas.toLocaleString('es-CL')}</b></div>
+                    <div class="donut-stat-row"><span>Vacías</span><b>${vacias.toLocaleString('es-CL')}</b></div>
+                    <div class="donut-stat-row"><span>% ocupado</span><b>${pct.toFixed(0)}%</b></div>
+                  </div>
+                </div>
+              </div>
+            `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Ocupación por pasillo</div>
+        <div class="card-sub">En base a Ubicaciones de Almacenaje</div>
+        <div class="chart-box" style="height:310px"><canvas id="pasilloChartCanvas"></canvas></div>
+      </div>
+    </div>
+
+    <div class="two-col section-gap fade-in">
+      <div class="card">
+        <div class="card-title">Ocupación por tipo de material</div>
+        <div class="card-sub">En base a Ubicaciones de Almacenaje</div>
+        ${renderMaterialBarsHtml(latest)}
+      </div>
+      <div class="card">
+        <div class="card-title">Densidad de almacenamiento</div>
+        <div class="card-sub">En base a Ubicaciones de Almacenaje</div>
+        ${renderDensidadHtml(latest)}
+      </div>
+    </div>
+
+    <div class="card section-gap fade-in">
+        <div class="card-title">Bloqueos de calidad</div>
+        <div class="card-sub">Columna "Tipo de stock" = Q1/Q2/Q3 · desglosado por almacén (sigla de "Denomin.tipo stocks")</div>
+        <div class="kpi-value" style="font-size:28px;color:var(--warn)">${(latest.bloqueoCalidad? latest.bloqueoCalidad.totalUbicaciones : 0).toLocaleString('es-CL')}<span class="unit" style="font-size:13px"> ubicaciones bloqueadas</span></div>
+        ${ !latest.bloqueoCalidad
+          ? `<p style="color:var(--text-faint);font-size:12.5px;margin-top:14px">Este corte se cargó con una versión anterior del dashboard y no tiene este dato. Vuelve a subirlo.</p>`
+          : latest.bloqueoCalidad.porAlmacen.length===0
+          ? `<p style="color:var(--text-faint);font-size:12.5px;margin-top:14px">Sin bloqueos de calidad en este corte.</p>`
+          : `<div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:16px;align-items:center">
+              <div style="flex:1;min-width:320px;display:flex;flex-direction:column;gap:12px">
+                ${latest.bloqueoCalidad.porAlmacen.map(a=>`
+                  <div class="tipo-row">
+                    <div class="tipo-label">${a.sigla}</div>
+                    <div class="tipo-bar-track"><div class="tipo-bar-fill" style="background:linear-gradient(90deg,#8A3A38,var(--warn));width:${(a.ubicaciones/latest.bloqueoCalidad.totalUbicaciones*100).toFixed(1)}%"></div></div>
+                    <div class="tipo-value" style="width:auto;white-space:nowrap;flex-shrink:0">${a.ubicaciones.toLocaleString('es-CL')} ubic. <span class="tipo-value-total">· ${Math.round(a.unidades).toLocaleString('es-CL')} unid.</span></div>
+                  </div>
+                `).join('')}
+              </div>
+              ${ latest.bloqueoCalidad.totalUbicaciones>0 && (latest.bloqueoCalidad.porMaterial||[]).length>0 ? `
+              <div style="flex-shrink:0;display:flex;align-items:center;gap:18px">
+                <div style="width:150px;height:150px;flex-shrink:0"><canvas id="bloqueoMaterialDonut"></canvas></div>
+                <div class="donut-stats">
+                  ${latest.bloqueoCalidad.porMaterial.map((m,i)=> `<div class="donut-stat-row" style="font-size:11.5px"><span><span class="seg-legend-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]};display:inline-block;margin-right:5px"></span>${m.tipo}</span><b>${m.ubicaciones.toLocaleString('es-CL')} (${(m.ubicaciones/latest.bloqueoCalidad.totalUbicaciones*100).toFixed(0)}%)</b></div>`).join('')}
+                </div>
+              </div>` : ''}
+            </div>`
+        }
+        ${ (latest.bloqueoRawRows||[]).length>0 ? `<div style="margin-top:18px"><button class="btn secondary" onclick="exportBloqueoDetail()">⬇ Exportar productos bloqueados (CSV)</button></div>` : ''}
+      </div>
+    </div>
+
+  `;
+
+  renderTrendChart();
+  renderZoneDonut(latest);
+  renderPasilloChart(latest);
+  renderBloqueoMaterialDonut(latest);
+}
+
+/* ---------------- init ---------------- */
+(async function init(){
+  bases = await getStore('bases-config');
+  snapshots = (await getStore('stock-snapshots')) || [];
+  mmSnapshots = (await getStore('mm-stock-snapshots')) || [];
+  difInvSnapshots = (await getStore('difinv-snapshots')) || [];
+  updateHeaderPills();
+  renderApp();
+})();
+</script>
+</body>
+</html>
