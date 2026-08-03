@@ -3831,6 +3831,14 @@ function renderInventarioTab(){
   renderVirtualTrendChart();
 }
 
+let expandedHistoriales = new Set();
+function toggleHistorial(key){
+  if(expandedHistoriales.has(key)) expandedHistoriales.delete(key);
+  else expandedHistoriales.add(key);
+  renderApp();
+}
+window.toggleHistorial = toggleHistorial;
+
 function renderCargaDatosTab(){
   const app = document.getElementById('app');
   const sorted = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
@@ -3873,16 +3881,30 @@ function renderCargaDatosTab(){
     </div>
 
     <div class="card fade-in">
-      <div class="card-title">Base de posiciones y zonas</div>
-      <div class="card-sub">Archivo "Bases Capacidad CD" — pestañas "Base de posiciones", "TIPO ZONA" y "Cluster Tipo Material". Se actualiza pocas veces.</div>
-      ${basesCardHtml}
-      <div style="margin-top:16px"><button class="btn" onclick="openModal('bases')">⟳ Cargar / actualizar bases</button></div>
-    </div>
-    <div class="card section-gap fade-in">
-      <div class="card-title">Cortes de stock (EWM)</div>
-      <div class="card-sub">Archivos EXPORT_AAAAMMDD_HHMMSS.xlsx — pestaña "Data". Alimenta Ocupación e Inventario.</div>
-      ${stockCardHtml}
-      <div style="margin-top:16px"><button class="btn" onclick="openModal('stock')">⟳ Cargar corte de stock</button></div>
+      <div class="card-title">Cargar archivos</div>
+      <div class="card-sub">Un botón por fuente de datos. Al subir un archivo se reemplaza/agrega automáticamente al historial correspondiente.</div>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--border)">
+          <button class="btn" style="min-width:210px" onclick="openModal('bases')">⟟ Base de posiciones</button>
+          <div style="flex:1;min-width:200px">${basesCardHtml}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--border)">
+          <button class="btn" style="min-width:210px" onclick="openModal('stock')">⟟ Corte de stock (EWM)</button>
+          <div style="flex:1;min-width:200px">${stockCardHtml}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--border)">
+          <button class="btn" style="min-width:210px" onclick="openModal('stockMM')">⟟ Corte de stock MM</button>
+          <div style="flex:1;min-width:200px">${stockMMCardHtml}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--border)">
+          <button class="btn" style="min-width:210px" onclick="openModal('difInv')">⟟ Diferencias de inventario</button>
+          <div style="flex:1;min-width:200px">${difInvCardHtml}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <button class="btn" style="min-width:210px" onclick="openModal('transito')">⟟ Tránsito</button>
+          <div style="flex:1;min-width:200px">${transitoCardHtml}</div>
+        </div>
+      </div>
     </div>
 
     <div class="card section-gap fade-in">
@@ -3922,151 +3944,131 @@ function renderCargaDatosTab(){
     </div>
 
     <div class="card section-gap fade-in">
-      <div class="card-title">Cortes de stock MM</div>
-      <div class="card-sub">Fuente adicional sin ubicaciones (Centro, Almacén, Material, Libre utilización, Valor libre util.) — solo alimenta Inventario, no afecta Ocupación.</div>
-      ${stockMMCardHtml}
-      <div style="margin-top:16px"><button class="btn" onclick="openModal('stockMM')">⟳ Cargar corte MM</button></div>
+      <div class="card-title">Historiales</div>
+      <div class="card-sub">Haz clic en una fuente para ver el detalle de cortes cargados.</div>
+
+      <div class="exp-row ${expandedHistoriales.has('ewm')?'open':''}" onclick="toggleHistorial('ewm')" style="margin-top:10px">
+        <div class="exp-row-left"><span class="exp-chevron">▶</span><span class="strong">Cortes EWM</span></div>
+        <div class="exp-stats"><span>Cortes<b>${snapshots.length.toLocaleString('es-CL')}</b></span><span>Guardado<b>~${formatKB(sorted)} KB</b></span></div>
+      </div>
+      ${expandedHistoriales.has('ewm') ? (snapshots.length ? `
+      <div class="exp-detail">
+        <table>
+          <thead><tr><th>Fecha del corte</th><th>Archivo</th><th class="num">Ocupadas</th><th class="num">Total</th><th class="num">% Ocupación</th><th></th></tr></thead>
+          <tbody>
+            ${sorted.map(s=>`
+              <tr>
+                <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
+                <td>${s.fileName}</td>
+                <td class="num">${s.ocupadas.toLocaleString('es-CL')}</td>
+                <td class="num">${s.totalUbicaciones.toLocaleString('es-CL')}</td>
+                <td class="num strong">${(s.pct*100).toFixed(1)}%</td>
+                <td style="text-align:right"><button class="btn ghost" onclick="event.stopPropagation();deleteSnapshot('${s.id}')">Eliminar</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          ${confirmClearEWM
+            ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${snapshots.length} cortes EWM? No se puede deshacer.</span>
+               <button class="btn" style="background:var(--warn);color:#fff" onclick="event.stopPropagation();clearAllSnapshots()">Sí, vaciar</button>
+               <button class="btn ghost" onclick="event.stopPropagation();cancelClearEWM()">Cancelar</button>`
+            : `<button class="btn ghost" onclick="event.stopPropagation();requestClearEWM()">Vaciar historial completo</button>`
+          }
+        </div>
+      </div>` : `<div class="exp-detail"><p style="color:var(--text-faint);font-size:12.5px">Sin cortes cargados.</p></div>`) : ''}
+
+      <div class="exp-row ${expandedHistoriales.has('mm')?'open':''}" onclick="toggleHistorial('mm')">
+        <div class="exp-row-left"><span class="exp-chevron">▶</span><span class="strong">Cortes MM</span></div>
+        <div class="exp-stats"><span>Cortes<b>${mmSnapshots.length.toLocaleString('es-CL')}</b></span><span>Guardado<b>~${formatKB(sortedMM)} KB</b></span></div>
+      </div>
+      ${expandedHistoriales.has('mm') ? (mmSnapshots.length ? `
+      <div class="exp-detail">
+        <table>
+          <thead><tr><th>Fecha del corte</th><th>Archivo</th><th class="num">Unidades</th><th class="num">Monto</th><th class="num">Excluidos LI</th><th></th></tr></thead>
+          <tbody>
+            ${sortedMM.map(s=>`
+              <tr>
+                <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
+                <td>${s.fileName}</td>
+                <td class="num">${Math.round(s.totalUnidades).toLocaleString('es-CL')}</td>
+                <td class="num strong">$${Math.round(s.totalMonto).toLocaleString('es-CL')}</td>
+                <td class="num">${s.excludedLI.toLocaleString('es-CL')}</td>
+                <td style="text-align:right"><button class="btn ghost" onclick="event.stopPropagation();deleteMMSnapshot('${s.id}')">Eliminar</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          ${confirmClearMM
+            ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${mmSnapshots.length} cortes MM? No se puede deshacer.</span>
+               <button class="btn" style="background:var(--warn);color:#fff" onclick="event.stopPropagation();clearAllMMSnapshots()">Sí, vaciar</button>
+               <button class="btn ghost" onclick="event.stopPropagation();cancelClearMM()">Cancelar</button>`
+            : `<button class="btn ghost" onclick="event.stopPropagation();requestClearMM()">Vaciar historial completo</button>`
+          }
+        </div>
+      </div>` : `<div class="exp-detail"><p style="color:var(--text-faint);font-size:12.5px">Sin cortes cargados.</p></div>`) : ''}
+
+      <div class="exp-row ${expandedHistoriales.has('difinv')?'open':''}" onclick="toggleHistorial('difinv')">
+        <div class="exp-row-left"><span class="exp-chevron">▶</span><span class="strong">Diferencias de inventario</span></div>
+        <div class="exp-stats"><span>Archivos<b>${difInvSnapshots.length.toLocaleString('es-CL')}</b></span><span>Guardado<b>~${formatKB(sortedDifInv)} KB</b></span></div>
+      </div>
+      ${expandedHistoriales.has('difinv') ? (difInvSnapshots.length ? `
+      <div class="exp-detail">
+        <table>
+          <thead><tr><th>Fecha</th><th>Archivo</th><th class="num">Filas Cajas</th><th class="num">Filas Polines</th><th></th></tr></thead>
+          <tbody>
+            ${sortedDifInv.map(s=>`
+              <tr>
+                <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
+                <td>${s.fileName}</td>
+                <td class="num">${s.cajasCount.toLocaleString('es-CL')}</td>
+                <td class="num">${s.polinesCount.toLocaleString('es-CL')}</td>
+                <td style="text-align:right"><button class="btn ghost" onclick="event.stopPropagation();deleteDifInvSnapshot('${s.id}')">Eliminar</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          ${confirmClearDifInv
+            ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${difInvSnapshots.length} archivos? No se puede deshacer.</span>
+               <button class="btn" style="background:var(--warn);color:#fff" onclick="event.stopPropagation();clearAllDifInvSnapshots()">Sí, vaciar</button>
+               <button class="btn ghost" onclick="event.stopPropagation();cancelClearDifInv()">Cancelar</button>`
+            : `<button class="btn ghost" onclick="event.stopPropagation();requestClearDifInv()">Vaciar historial completo</button>`
+          }
+        </div>
+      </div>` : `<div class="exp-detail"><p style="color:var(--text-faint);font-size:12.5px">Sin archivos cargados.</p></div>`) : ''}
+
+      <div class="exp-row ${expandedHistoriales.has('transito')?'open':''}" onclick="toggleHistorial('transito')">
+        <div class="exp-row-left"><span class="exp-chevron">▶</span><span class="strong">Tránsito</span></div>
+        <div class="exp-stats"><span>Archivos<b>${transitoSnapshots.length.toLocaleString('es-CL')}</b></span><span>Guardado<b>~${formatKB(sortedTransito)} KB</b></span></div>
+      </div>
+      ${expandedHistoriales.has('transito') ? (transitoSnapshots.length ? `
+      <div class="exp-detail">
+        <table>
+          <thead><tr><th>Fecha</th><th>Archivo</th><th class="num">Entregas</th><th class="num">Unidades</th><th></th></tr></thead>
+          <tbody>
+            ${sortedTransito.map(s=>`
+              <tr>
+                <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
+                <td>${s.fileName}</td>
+                <td class="num">${s.totalEntregas.toLocaleString('es-CL')}</td>
+                <td class="num">${Math.round(s.totalUnidades).toLocaleString('es-CL')}</td>
+                <td style="text-align:right"><button class="btn ghost" onclick="event.stopPropagation();deleteTransitoSnapshot('${s.id}')">Eliminar</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          ${confirmClearTransito
+            ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${transitoSnapshots.length} archivos? No se puede deshacer.</span>
+               <button class="btn" style="background:var(--warn);color:#fff" onclick="event.stopPropagation();clearAllTransitoSnapshots()">Sí, vaciar</button>
+               <button class="btn ghost" onclick="event.stopPropagation();cancelClearTransito()">Cancelar</button>`
+            : `<button class="btn ghost" onclick="event.stopPropagation();requestClearTransito()">Vaciar historial completo</button>`
+          }
+        </div>
+      </div>` : `<div class="exp-detail"><p style="color:var(--text-faint);font-size:12.5px">Sin archivos cargados.</p></div>`) : ''}
     </div>
-
-    <div class="card section-gap fade-in">
-      <div class="card-title">Diferencias de inventario CD COL</div>
-      <div class="card-sub">Solo pestañas "Z031" (Inventario Cajas) y "Z005" (Inventario Polines) — alimenta la pestaña Inventarios.</div>
-      ${difInvCardHtml}
-      <div style="margin-top:16px"><button class="btn" onclick="openModal('difInv')">⟳ Cargar archivo</button></div>
-    </div>
-
-    <div class="card section-gap fade-in">
-      <div class="card-title">Tránsito — entregas pendientes de recepción</div>
-      <div class="card-sub">Centro, Almacén, Creado por, Entregas (de/a), Entrega, Material, Cantidad entrega, Proveedor, etc. — alimenta la pestaña Tránsito.</div>
-      ${transitoCardHtml}
-      <div style="margin-top:16px"><button class="btn" onclick="openModal('transito')">⟳ Cargar archivo</button></div>
-    </div>
-
-    ${transitoSnapshots.length ? `
-    <div class="card section-gap fade-in">
-      <div class="card-title">Historial — Tránsito</div>
-      <div class="card-sub">Todos los archivos cargados hasta ahora · ~${formatKB(sortedTransito)} KB guardados.</div>
-      <table>
-        <thead><tr>
-          <th>Fecha</th><th>Archivo</th><th class="num">Entregas</th><th class="num">Unidades</th><th></th>
-        </tr></thead>
-        <tbody>
-          ${sortedTransito.map(s=>`
-            <tr>
-              <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
-              <td>${s.fileName}</td>
-              <td class="num">${s.totalEntregas.toLocaleString('es-CL')}</td>
-              <td class="num">${Math.round(s.totalUnidades).toLocaleString('es-CL')}</td>
-              <td style="text-align:right"><button class="btn ghost" onclick="deleteTransitoSnapshot('${s.id}')">Eliminar</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn secondary" onclick="openModal('transito')">+ Cargar otro archivo</button>
-        ${confirmClearTransito
-          ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${transitoSnapshots.length} archivos? No se puede deshacer.</span>
-             <button class="btn" style="background:var(--warn);color:#fff" onclick="clearAllTransitoSnapshots()">Sí, vaciar</button>
-             <button class="btn ghost" onclick="cancelClearTransito()">Cancelar</button>`
-          : `<button class="btn ghost" onclick="requestClearTransito()">Vaciar historial completo</button>`
-        }
-      </div>
-    </div>` : ''}
-
-    ${difInvSnapshots.length ? `
-    <div class="card section-gap fade-in">
-      <div class="card-title">Historial — Diferencias de inventario</div>
-      <div class="card-sub">Todos los archivos cargados hasta ahora · ~${formatKB(sortedDifInv)} KB guardados.</div>
-      <table>
-        <thead><tr>
-          <th>Fecha</th><th>Archivo</th><th class="num">Filas Cajas</th><th class="num">Filas Polines</th><th></th>
-        </tr></thead>
-        <tbody>
-          ${sortedDifInv.map(s=>`
-            <tr>
-              <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
-              <td>${s.fileName}</td>
-              <td class="num">${s.cajasCount.toLocaleString('es-CL')}</td>
-              <td class="num">${s.polinesCount.toLocaleString('es-CL')}</td>
-              <td style="text-align:right"><button class="btn ghost" onclick="deleteDifInvSnapshot('${s.id}')">Eliminar</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn secondary" onclick="openModal('difInv')">+ Cargar otro archivo</button>
-        ${confirmClearDifInv
-          ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${difInvSnapshots.length} archivos? No se puede deshacer.</span>
-             <button class="btn" style="background:var(--warn);color:#fff" onclick="clearAllDifInvSnapshots()">Sí, vaciar</button>
-             <button class="btn ghost" onclick="cancelClearDifInv()">Cancelar</button>`
-          : `<button class="btn ghost" onclick="requestClearDifInv()">Vaciar historial completo</button>`
-        }
-      </div>
-    </div>` : ''}
-
-    ${snapshots.length ? `
-    <div class="card section-gap fade-in">
-      <div class="card-title">Historial de cortes EWM</div>
-      <div class="card-sub">Todos los cortes de stock EWM cargados hasta ahora · ~${formatKB(sorted)} KB guardados (máx. recomendado ~4000 KB).</div>
-      <table>
-        <thead><tr>
-          <th>Fecha del corte</th><th>Archivo</th><th class="num">Ocupadas</th><th class="num">Total</th><th class="num">% Ocupación</th><th></th>
-        </tr></thead>
-        <tbody>
-          ${sorted.map(s=>`
-            <tr>
-              <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
-              <td>${s.fileName}</td>
-              <td class="num">${s.ocupadas.toLocaleString('es-CL')}</td>
-              <td class="num">${s.totalUbicaciones.toLocaleString('es-CL')}</td>
-              <td class="num strong">${(s.pct*100).toFixed(1)}%</td>
-              <td style="text-align:right"><button class="btn ghost" onclick="deleteSnapshot('${s.id}')">Eliminar</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn secondary" onclick="openModal('stock')">+ Cargar otro corte</button>
-        ${confirmClearEWM
-          ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${snapshots.length} cortes EWM? No se puede deshacer.</span>
-             <button class="btn" style="background:var(--warn);color:#fff" onclick="clearAllSnapshots()">Sí, vaciar</button>
-             <button class="btn ghost" onclick="cancelClearEWM()">Cancelar</button>`
-          : `<button class="btn ghost" onclick="requestClearEWM()">Vaciar historial EWM completo</button>`
-        }
-      </div>
-    </div>` : ''}
-
-    ${mmSnapshots.length ? `
-    <div class="card section-gap fade-in">
-      <div class="card-title">Historial de cortes MM</div>
-      <div class="card-sub">Todos los cortes MM cargados hasta ahora · ~${formatKB(sortedMM)} KB guardados.</div>
-      <table>
-        <thead><tr>
-          <th>Fecha del corte</th><th>Archivo</th><th class="num">Unidades</th><th class="num">Monto</th><th class="num">Excluidos LI</th><th></th>
-        </tr></thead>
-        <tbody>
-          ${sortedMM.map(s=>`
-            <tr>
-              <td class="strong">${new Date(s.fecha).toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short', hour12:false})}</td>
-              <td>${s.fileName}</td>
-              <td class="num">${Math.round(s.totalUnidades).toLocaleString('es-CL')}</td>
-              <td class="num strong">$${Math.round(s.totalMonto).toLocaleString('es-CL')}</td>
-              <td class="num">${s.excludedLI.toLocaleString('es-CL')}</td>
-              <td style="text-align:right"><button class="btn ghost" onclick="deleteMMSnapshot('${s.id}')">Eliminar</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn secondary" onclick="openModal('stockMM')">+ Cargar otro corte MM</button>
-        ${confirmClearMM
-          ? `<span style="color:var(--warn);font-size:12.5px">¿Vaciar los ${mmSnapshots.length} cortes MM? No se puede deshacer.</span>
-             <button class="btn" style="background:var(--warn);color:#fff" onclick="clearAllMMSnapshots()">Sí, vaciar</button>
-             <button class="btn ghost" onclick="cancelClearMM()">Cancelar</button>`
-          : `<button class="btn ghost" onclick="requestClearMM()">Vaciar historial MM completo</button>`
-        }
-      </div>
-    </div>` : ''}
 
     <div class="card section-gap fade-in">
       <div class="card-title">Respaldo manual</div>
