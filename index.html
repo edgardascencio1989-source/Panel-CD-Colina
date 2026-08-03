@@ -466,6 +466,10 @@ let snapshots = [];
 let mmSnapshots = [];
 let difInvSnapshots = [];
 let transitoSnapshots = [];
+// Caché de la sesión (no se persiste): filas crudas del último corte EWM/MM subido,
+// para poder recalcular automáticamente cuando se actualiza la base sin tener que resubir el stock.
+let lastStockRowsEWM = null; // { fileName, rows }
+let lastStockRowsMM = null;  // { fileName, rows }
 let filterZona = 'ALL';
 let filterPasillo = 'ALL';
 let filterSemana = 'ALL';
@@ -1667,7 +1671,36 @@ async function handleBasesFiles(fileList){
     bases = { locations: parsed.locations, zonas: parsed.zonas, materiales: parsed.materiales, costos: parsed.costos, modulaciones: parsed.modulaciones, fileName: file.name, uploadedAt: Date.now() };
     const saved = await setStore('bases-config', bases);
     if(!saved) throw new Error('El archivo se procesó pero no se pudo guardar (falló el almacenamiento). Intenta de nuevo.');
-    statusEl.innerHTML = `<div class="status-msg ok">✓ ${parsed.locations.length.toLocaleString('es-CL')} ubicaciones cargadas correctamente.</div>`;
+
+    // Intentar recalcular automáticamente los cortes más recientes con la base nueva,
+    // usando las filas crudas guardadas en esta misma sesión (no persistidas).
+    let avisoExtra = '';
+    if(snapshots.length){
+      const latestSnap = [...snapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha))[0];
+      if(lastStockRowsEWM && lastStockRowsEWM.fileName === latestSnap.fileName){
+        const recomputado = computeSnapshot(bases, lastStockRowsEWM.rows, latestSnap.fileName);
+        snapshots = snapshots.filter(s=>s.id!==recomputado.id);
+        snapshots.push(recomputado);
+        await setStore('stock-snapshots', slimSnapshotsForStorage(snapshots));
+        avisoExtra += ' Corte EWM más reciente recalculado automáticamente.';
+      } else {
+        avisoExtra += ' ⚠ Vuelve a subir tu corte de stock EWM más reciente para reflejar este cambio (no se pudo recalcular solo — no tengo sus datos en esta sesión).';
+      }
+    }
+    if(mmSnapshots.length){
+      const latestMM = [...mmSnapshots].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha))[0];
+      if(lastStockRowsMM && lastStockRowsMM.fileName === latestMM.fileName){
+        const recomputadoMM = computeMMSnapshot(bases, lastStockRowsMM.rows, latestMM.fileName);
+        mmSnapshots = mmSnapshots.filter(s=>s.id!==recomputadoMM.id);
+        mmSnapshots.push(recomputadoMM);
+        await setStore('mm-stock-snapshots', slimMMSnapshotsForStorage(mmSnapshots));
+        avisoExtra += ' Corte MM más reciente recalculado automáticamente.';
+      } else {
+        avisoExtra += ' ⚠ Vuelve a subir tu corte de stock MM más reciente para reflejar este cambio.';
+      }
+    }
+
+    statusEl.innerHTML = `<div class="status-msg ok">✓ ${parsed.locations.length.toLocaleString('es-CL')} ubicaciones cargadas correctamente.${avisoExtra}</div>`;
     renderBasesInfo();
     updateHeaderPills();
     renderApp();
@@ -1699,6 +1732,9 @@ async function handleStockFiles(fileList){
       const snap = computeSnapshot(bases, stockRows, file.name);
       snapshots = snapshots.filter(s => s.id !== snap.id);
       snapshots.push(snap);
+      if(!lastStockRowsEWM || new Date(snap.fecha) >= new Date(lastStockRowsEWM.fecha || 0)){
+        lastStockRowsEWM = { fileName: file.name, fecha: snap.fecha, rows: stockRows };
+      }
       okCount++;
       row.innerHTML += ` <span style="color:var(--good)">✓ ${(snap.pct*100).toFixed(1)}%</span>`;
     }catch(err){
@@ -1738,6 +1774,9 @@ async function handleStockMMFiles(fileList){
       const snap = computeMMSnapshot(bases, rows, file.name);
       mmSnapshots = mmSnapshots.filter(s => s.id !== snap.id);
       mmSnapshots.push(snap);
+      if(!lastStockRowsMM || new Date(snap.fecha) >= new Date(lastStockRowsMM.fecha || 0)){
+        lastStockRowsMM = { fileName: file.name, fecha: snap.fecha, rows: rows };
+      }
       okCount++;
       row.innerHTML += ` <span style="color:var(--good)">✓ ${Math.round(snap.totalUnidades).toLocaleString('es-CL')} unid.</span>`;
     }catch(err){
