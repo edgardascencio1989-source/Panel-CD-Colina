@@ -617,7 +617,18 @@ function parseBasesWorkbook(wb){
     });
   }
 
-  return { locations, zonas, materiales, costos, modulaciones };
+  let codigosMaestro = {};
+  const maestroSheet = getSheet(wb, 'Maestra Codigos') || getSheet(wb, 'Maestra Códigos');
+  if(maestroSheet){
+    const maestroRows = XLSX.utils.sheet_to_json(maestroSheet, {defval:null});
+    maestroRows.forEach(r=>{
+      const cod = normalizeProducto(getCol(r,'COD. SAP') ?? getCol(r,'COD SAP') ?? getCol(r,'Codigo'));
+      const desc = String(getCol(r,'DESCRIPCION') ?? getCol(r,'DESCRIPCIÓN') ?? '').trim();
+      if(cod) codigosMaestro[cod] = desc;
+    });
+  }
+
+  return { locations, zonas, materiales, costos, modulaciones, codigosMaestro };
 }
 
 function formatCellDate(v){
@@ -1190,7 +1201,9 @@ function ndsMetrics(rows){
   };
 }
 
-function computeNDSSnapshot(rows, fileName){
+function computeNDSSnapshot(rows, fileName, codigosMaestro){
+  const maestro = codigosMaestro || {};
+  const descripcionDe = (sku, fallback) => maestro[sku] || fallback || '';
   const dt = parseDateFromFilename(fileName) || new Date();
 
   // Tendencia por fecha (usa la columna FECHA de cada fila, no el nombre del archivo)
@@ -1226,7 +1239,7 @@ function computeNDSSnapshot(rows, fileName){
       if(!m[key].descripcion && r.descripcion) m[key].descripcion = r.descripcion;
     });
     return Object.values(m)
-      .map(v=> ({ sku:v.sku, descripcion:v.descripcion, ...ndsMetrics(v.rows) }))
+      .map(v=> ({ sku:v.sku, descripcion:descripcionDe(v.sku, v.descripcion), ...ndsMetrics(v.rows) }))
       .sort((a,b)=> b.quiebre - a.quiebre);
   })();
   const porFormato = porGrupo(r=> r.formato);
@@ -1242,6 +1255,27 @@ function computeNDSSnapshot(rows, fileName){
     return Object.values(m).sort((a,b)=> b.quiebre-a.quiebre);
   })();
 
+  // Por código + fecha: base liviana (pocos cientos de combinaciones típicamente) que permite
+  // el buscador histórico por código y el cuadro "Códigos" acotado a un rango de fechas,
+  // sin tener que guardar las filas crudas del archivo.
+  const porCodigoFechaMap = {};
+  rows.forEach(r=>{
+    const sku = r.sku || 'SIN SKU';
+    const fecha = r.fecha.slice(0,10);
+    const key = sku + '|' + fecha;
+    if(!porCodigoFechaMap[key]) porCodigoFechaMap[key] = { sku, descripcion:r.descripcion, fecha, solicitado:0, preparado:0, quiebre:0 };
+    const e = porCodigoFechaMap[key];
+    e.solicitado += r.solicitado;
+    e.preparado += r.preparado;
+    e.quiebre += r.quiebre;
+    if(!e.descripcion && r.descripcion) e.descripcion = r.descripcion;
+  });
+  const porCodigoFecha = Object.values(porCodigoFechaMap).map(e=> ({
+    sku: e.sku, descripcion: descripcionDe(e.sku, e.descripcion), fecha: e.fecha,
+    solicitado: e.solicitado, preparado: e.preparado, quiebre: e.quiebre,
+    ndsPct: e.solicitado ? e.preparado/e.solicitado*100 : 0
+  })).sort((a,b)=> new Date(a.fecha)-new Date(b.fecha));
+
   const filtros = {
     formatos: Array.from(new Set(rows.map(r=>r.formato).filter(Boolean))).sort(),
     zonales: Array.from(new Set(rows.map(r=>r.zonal).filter(Boolean))).sort(),
@@ -1255,7 +1289,7 @@ function computeNDSSnapshot(rows, fileName){
     fecha: dt.toISOString(),
     totalLineas: rows.length,
     ...ndsMetrics(rows),
-    porFecha, porRuta, porSku, porFormato, porZonal, porMotivo,
+    porFecha, porRuta, porSku, porFormato, porZonal, porMotivo, porCodigoFecha,
     filtros
   };
 }
@@ -1874,7 +1908,7 @@ async function handleBasesFiles(fileList){
     const wb = XLSX.read(buf, {type:'array', cellDates:true});
     const parsed = parseBasesWorkbook(wb);
     if(parsed.locations.length === 0) throw new Error('El archivo no tiene ubicaciones válidas.');
-    bases = { locations: parsed.locations, zonas: parsed.zonas, materiales: parsed.materiales, costos: parsed.costos, modulaciones: parsed.modulaciones, fileName: file.name, uploadedAt: Date.now() };
+    bases = { locations: parsed.locations, zonas: parsed.zonas, materiales: parsed.materiales, costos: parsed.costos, modulaciones: parsed.modulaciones, codigosMaestro: parsed.codigosMaestro, fileName: file.name, uploadedAt: Date.now() };
     const saved = await setStore('bases-config', bases);
     if(!saved) throw new Error('El archivo se procesó pero no se pudo guardar (falló el almacenamiento). Intenta de nuevo.');
 
@@ -2224,7 +2258,7 @@ async function handleNDSFiles(fileList){
       if(rows.length === 0){
         throw new Error('No se encontraron filas válidas (revisa las columnas FECHA/SUBORDE).');
       }
-      const snap = computeNDSSnapshot(rows, file.name);
+      const snap = computeNDSSnapshot(rows, file.name, (bases && bases.codigosMaestro) || {});
       ndsSnapshots = ndsSnapshots.filter(s => s.id !== snap.id);
       ndsSnapshots.push(snap);
       okCount++;
@@ -2603,6 +2637,39 @@ window.setDimTransito = setDimTransito;
 let filterInventarioFecha = '';
 function setFilterInventarioFecha(v){ filterInventarioFecha = v; renderApp(); }
 window.setFilterInventarioFecha = setFilterInventarioFecha;
+
+let filterNDSSemana = '';
+let filterNDSFecha = '';
+function setFilterNDSSemana(v){ filterNDSSemana = v; filterNDSFecha=''; renderApp(); }
+window.setFilterNDSSemana = setFilterNDSSemana;
+function setFilterNDSFecha(v){ filterNDSFecha = v; filterNDSSemana=''; renderApp(); }
+window.setFilterNDSFecha = setFilterNDSFecha;
+function clearFilterNDSFechas(){ filterNDSSemana=''; filterNDSFecha=''; renderApp(); }
+window.clearFilterNDSFechas = clearFilterNDSFechas;
+
+let ndsBuscarCodigo = '';
+function setNdsBuscarCodigo(v){ ndsBuscarCodigo = v.trim(); renderApp(); }
+window.setNdsBuscarCodigo = setNdsBuscarCodigo;
+
+function isoWeekToDateRange(weekStr){
+  const [yearStr, weekPart] = weekStr.split('-W');
+  const year = parseInt(yearStr), week = parseInt(weekPart);
+  const simple = new Date(Date.UTC(year, 0, 1 + (week-1)*7));
+  const dow = simple.getUTCDay() || 7;
+  const monday = new Date(simple); monday.setUTCDate(simple.getUTCDate() - dow + 1);
+  const sunday = new Date(monday); sunday.setUTCDate(monday.getUTCDate()+6);
+  return { start: monday.toISOString().slice(0,10), end: sunday.toISOString().slice(0,10) };
+}
+
+// Fusiona el desglose por código+fecha de TODOS los archivos NDS subidos a través del tiempo
+// (si dos archivos traen el mismo día, gana el dato del archivo cargado más recientemente).
+function mergeNDSPorCodigoFecha(){
+  const map = {};
+  [...ndsSnapshots].sort((a,b)=> new Date(a.fecha)-new Date(b.fecha)).forEach(snap=>{
+    (snap.porCodigoFecha||[]).forEach(e=>{ map[e.sku+'|'+e.fecha] = e; });
+  });
+  return Object.values(map);
+}
 
 let filterComparativoDia = ''; // '' = automático (último stock del día anterior)
 function setFilterComparativoDia(v){ filterComparativoDia = v; renderApp(); }
@@ -4046,10 +4113,66 @@ function renderNDSTab(){
   }
 
   const fmtPct = v => `${v.toFixed(1)}%`;
-  const porRuta30 = latest.porRuta.slice(0,30);
-  const porSku30 = latest.porSku.slice(0,30);
-  const porFormato30 = latest.porFormato.slice(0,30);
-  const porZonal30 = latest.porZonal.slice(0,30);
+  const fmtFechaCorta = f => { const [y,m,d]=f.split('-'); return `${d}-${m}`; };
+
+  // ---- Fusión histórica por código+fecha (todos los archivos NDS subidos con el tiempo) ----
+  const historiaCodigos = mergeNDSPorCodigoFecha();
+
+  // ---- Cuadro "Códigos": últimos 6 días, o el rango de la semana/fecha filtrada ----
+  let ventanaCodigos, tituloVentana;
+  if(filterNDSFecha){
+    ventanaCodigos = historiaCodigos.filter(e=> e.fecha === filterNDSFecha);
+    tituloVentana = `Fecha ${fmtFechaCorta(filterNDSFecha)}`;
+  } else if(filterNDSSemana){
+    const {start, end} = isoWeekToDateRange(filterNDSSemana);
+    ventanaCodigos = historiaCodigos.filter(e=> e.fecha >= start && e.fecha <= end);
+    tituloVentana = `Semana ${fmtFechaCorta(start)} al ${fmtFechaCorta(end)}`;
+  } else {
+    const diasDisponibles = Array.from(new Set(historiaCodigos.map(e=>e.fecha))).sort((a,b)=> new Date(b)-new Date(a));
+    const ultimos6 = diasDisponibles.slice(0,6);
+    ventanaCodigos = historiaCodigos.filter(e=> ultimos6.includes(e.fecha));
+    tituloVentana = 'Últimos 6 días';
+  }
+  const porCodigoVentana = (() => {
+    const m = {};
+    ventanaCodigos.forEach(e=>{
+      if(!m[e.sku]) m[e.sku] = { sku:e.sku, descripcion:e.descripcion, solicitado:0, preparado:0, quiebre:0 };
+      m[e.sku].solicitado += e.solicitado;
+      m[e.sku].preparado += e.preparado;
+      m[e.sku].quiebre += e.quiebre;
+      if(!m[e.sku].descripcion && e.descripcion) m[e.sku].descripcion = e.descripcion;
+    });
+    return Object.values(m).map(v=>({...v, ndsPct: v.solicitado? v.preparado/v.solicitado*100:0})).sort((a,b)=> b.quiebre-a.quiebre);
+  })();
+
+  // ---- Buscador histórico por código (fusiona todos los archivos subidos con el tiempo) ----
+  const historialBuscado = ndsBuscarCodigo
+    ? historiaCodigos.filter(e=> e.sku === ndsBuscarCodigo).sort((a,b)=> new Date(a.fecha)-new Date(b.fecha))
+    : [];
+
+  const dropdown = (id, titulo, lista, labelKey) => `
+    <div class="exp-row ${expandedHistoriales.has(id)?'open':''}" onclick="toggleHistorial('${id}')">
+      <div class="exp-row-left"><span class="exp-chevron">▶</span><span class="strong">${titulo}</span></div>
+      <div class="exp-stats"><span>Ítems<b>${lista.length.toLocaleString('es-CL')}</b></span></div>
+    </div>
+    ${expandedHistoriales.has(id) ? `
+    <div class="exp-detail">
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>${titulo}</th><th class="num">Solicitado</th><th class="num">Preparado</th><th class="num">NDS %</th><th class="num">Quiebre</th></tr></thead>
+        <tbody>
+          ${lista.map(r=>`
+            <tr>
+              <td class="strong">${r[labelKey]}</td>
+              <td class="num">${Math.round(r.solicitado).toLocaleString('es-CL')}</td>
+              <td class="num">${Math.round(r.preparado).toLocaleString('es-CL')}</td>
+              <td class="num">${fmtPct(r.ndsPct)}</td>
+              <td class="num" style="color:${r.quiebre>0?'var(--warn)':'inherit'}">${Math.round(r.quiebre).toLocaleString('es-CL')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table></div>
+    </div>` : ''}
+  `;
 
   app.innerHTML = tabBarHtml() + `
     <div class="section-bar fade-in">
@@ -4067,35 +4190,21 @@ function renderNDSTab(){
       <div class="chart-box" style="height:240px;margin-top:16px"><canvas id="ndsTrendCanvas"></canvas></div>
     </div>
 
-    <div class="two-col section-gap">
-      <div class="card fade-in">
-        <div class="card-title">Por ruta</div>
-        <div class="card-sub">Top 30 por unidades quebradas</div>
-        <div style="overflow-x:auto"><table>
-          <thead><tr><th>Ruta</th><th class="num">Solicitado</th><th class="num">Preparado</th><th class="num">NDS %</th><th class="num">Quiebre</th><th class="num">Quiebre %</th></tr></thead>
-          <tbody>
-            ${porRuta30.map(r=>`
-              <tr>
-                <td class="strong">${r.key}</td>
-                <td class="num">${Math.round(r.solicitado).toLocaleString('es-CL')}</td>
-                <td class="num">${Math.round(r.preparado).toLocaleString('es-CL')}</td>
-                <td class="num">${fmtPct(r.ndsPct)}</td>
-                <td class="num" style="color:${r.quiebre>0?'var(--warn)':'inherit'}">${Math.round(r.quiebre).toLocaleString('es-CL')}</td>
-                <td class="num">${fmtPct(r.quiebrePct)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table></div>
+    <div class="card section-gap fade-in">
+      <div class="card-title">Buscar historial por código</div>
+      <div class="card-sub">Busca un código y revisa su evolución de NDS a través de todos los archivos NDS que hayas subido en el tiempo.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <input type="text" placeholder="Código (ej. 100112)" value="${ndsBuscarCodigo}" onchange="setNdsBuscarCodigo(this.value)" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px;min-width:200px">
       </div>
-      <div class="card fade-in">
-        <div class="card-title">Por SKU</div>
-        <div class="card-sub">Top 30 por unidades quebradas</div>
-        <div style="overflow-x:auto"><table>
-          <thead><tr><th>SKU</th><th>Producto</th><th class="num">Solicitado</th><th class="num">Preparado</th><th class="num">NDS %</th><th class="num">Quiebre</th></tr></thead>
+      ${ndsBuscarCodigo ? (historialBuscado.length===0 ? `
+        <p style="color:var(--text-faint);font-size:12.5px;margin-top:10px">Sin historial para el código "${ndsBuscarCodigo}" en los archivos NDS cargados.</p>
+      ` : `
+        <div style="overflow-x:auto;margin-top:12px"><table>
+          <thead><tr><th>Fecha</th><th>Descripción</th><th class="num">Solicitado</th><th class="num">Preparado</th><th class="num">NDS %</th><th class="num">Quiebre</th></tr></thead>
           <tbody>
-            ${porSku30.map(r=>`
+            ${historialBuscado.map(r=>`
               <tr>
-                <td class="strong">${r.sku}</td>
+                <td class="strong">${r.fecha.split('-').reverse().join('-')}</td>
                 <td>${r.descripcion}</td>
                 <td class="num">${Math.round(r.solicitado).toLocaleString('es-CL')}</td>
                 <td class="num">${Math.round(r.preparado).toLocaleString('es-CL')}</td>
@@ -4105,46 +4214,7 @@ function renderNDSTab(){
             `).join('')}
           </tbody>
         </table></div>
-      </div>
-    </div>
-
-    <div class="two-col section-gap">
-      <div class="card fade-in">
-        <div class="card-title">Por Formato</div>
-        <div class="card-sub">Top 30 por unidades quebradas</div>
-        <div style="overflow-x:auto"><table>
-          <thead><tr><th>Formato</th><th class="num">Solicitado</th><th class="num">Preparado</th><th class="num">NDS %</th><th class="num">Quiebre</th></tr></thead>
-          <tbody>
-            ${porFormato30.map(r=>`
-              <tr>
-                <td class="strong">${r.key}</td>
-                <td class="num">${Math.round(r.solicitado).toLocaleString('es-CL')}</td>
-                <td class="num">${Math.round(r.preparado).toLocaleString('es-CL')}</td>
-                <td class="num">${fmtPct(r.ndsPct)}</td>
-                <td class="num" style="color:${r.quiebre>0?'var(--warn)':'inherit'}">${Math.round(r.quiebre).toLocaleString('es-CL')}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table></div>
-      </div>
-      <div class="card fade-in">
-        <div class="card-title">Por Zonal</div>
-        <div class="card-sub">Top 30 por unidades quebradas</div>
-        <div style="overflow-x:auto"><table>
-          <thead><tr><th>Zonal</th><th class="num">Solicitado</th><th class="num">Preparado</th><th class="num">NDS %</th><th class="num">Quiebre</th></tr></thead>
-          <tbody>
-            ${porZonal30.map(r=>`
-              <tr>
-                <td class="strong">${r.key}</td>
-                <td class="num">${Math.round(r.solicitado).toLocaleString('es-CL')}</td>
-                <td class="num">${Math.round(r.preparado).toLocaleString('es-CL')}</td>
-                <td class="num">${fmtPct(r.ndsPct)}</td>
-                <td class="num" style="color:${r.quiebre>0?'var(--warn)':'inherit'}">${Math.round(r.quiebre).toLocaleString('es-CL')}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table></div>
-      </div>
+      `) : ''}
     </div>
 
     <div class="card section-gap fade-in">
@@ -4162,6 +4232,49 @@ function renderNDSTab(){
           </div>`;
         }).join('')}
       </div>`}
+    </div>
+
+    <div class="card section-gap fade-in">
+      <div class="card-head-row">
+        <div>
+          <div class="card-title">Quiebres por código</div>
+          <div class="card-sub" style="margin-bottom:0">${tituloVentana}</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <label style="font-size:12px;color:var(--text-faint)">Semana
+            <input type="week" value="${filterNDSSemana}" onchange="setFilterNDSSemana(this.value)" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px;margin-left:4px">
+          </label>
+          <label style="font-size:12px;color:var(--text-faint)">Fecha
+            <input type="date" value="${filterNDSFecha}" onchange="setFilterNDSFecha(this.value)" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px;margin-left:4px">
+          </label>
+          ${(filterNDSSemana||filterNDSFecha) ? `<button class="btn ghost" onclick="clearFilterNDSFechas()">Últimos 6 días</button>` : ''}
+        </div>
+      </div>
+      <div style="overflow-x:auto;margin-top:10px"><table>
+        <thead><tr><th>Código</th><th>Descripción</th><th class="num">Solicitado</th><th class="num">Preparado</th><th class="num">NDS %</th><th class="num">Quiebre</th></tr></thead>
+        <tbody>
+          ${porCodigoVentana.length===0 ? `<tr><td colspan="6" style="color:var(--text-faint);text-align:center;padding:16px">Sin datos en este rango.</td></tr>` : porCodigoVentana.map(r=>`
+            <tr>
+              <td class="strong">${r.sku}</td>
+              <td>${r.descripcion}</td>
+              <td class="num">${Math.round(r.solicitado).toLocaleString('es-CL')}</td>
+              <td class="num">${Math.round(r.preparado).toLocaleString('es-CL')}</td>
+              <td class="num">${fmtPct(r.ndsPct)}</td>
+              <td class="num" style="color:${r.quiebre>0?'var(--warn)':'inherit'}">${Math.round(r.quiebre).toLocaleString('es-CL')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="card section-gap fade-in">
+      <div class="card-title">Desgloses (más recientes)</div>
+      <div class="card-sub">Ordenados de mayor a menor quiebre en unidades. Haz clic para expandir.</div>
+      <div style="margin-top:10px">
+        ${dropdown('nds-formato', 'Por Formato', latest.porFormato, 'key')}
+        ${dropdown('nds-zonal', 'Por Zonal', latest.porZonal, 'key')}
+        ${dropdown('nds-ruta', 'Por Ruta', latest.porRuta, 'key')}
+      </div>
     </div>
   `;
 
