@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="es"><head>
-    <meta charset="UTF-8">
+<html lang="es">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ocupación Centro de Distribución</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
 <style>
@@ -384,7 +385,7 @@
     <h3>Base de posiciones y zonas</h3>
     <p class="hint">Archivo "Bases Capacidad CD" — pestañas "Base de posiciones" y "TIPO ZONA". Se actualiza pocas veces; reemplaza la versión anterior.</p>
     <div class="dropzone" id="dropBases" onclick="document.getElementById('fileBases').click()">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
       <p>Arrastra el archivo .xlsx aquí</p>
       <span>o haz clic para seleccionar</span>
     </div>
@@ -401,11 +402,11 @@
     <h3>Cortes de stock (EWM)</h3>
     <p class="hint">Archivos <span style="font-family:'JetBrains Mono',monospace">EXPORT_AAAAMMDD_HHMMSS.xlsx</span> — pestaña "Data". Puedes subir varios a la vez para reconstruir el histórico. La fecha se toma del nombre del archivo.</p>
     <div class="dropzone" id="dropStock" onclick="document.getElementById('fileStock').click()">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
       <p>Arrastra uno o más cortes aquí</p>
       <span>o haz clic para seleccionar</span>
     </div>
-    <input type="file" id="fileStock" accept=".xlsx,.xls" multiple="" style="display:none">
+    <input type="file" id="fileStock" accept=".xlsx,.xls" multiple style="display:none">
     <div id="stockStatus"></div>
     <div id="stockFileList" class="file-list"></div>
   </div>
@@ -417,11 +418,11 @@
     <h3>Cortes de stock MM</h3>
     <p class="hint">Fuente adicional (sin ubicaciones) — mismo formato de nombre de archivo que EWM. Columnas: Centro, Almacén, Material, Texto breve material, Unidad medida base, Libre utilización, Valor libre util. Solo alimenta la pestaña Inventario.</p>
     <div class="dropzone" id="dropStockMM" onclick="document.getElementById('fileStockMM').click()">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
       <p>Arrastra uno o más cortes MM aquí</p>
       <span>o haz clic para seleccionar</span>
     </div>
-    <input type="file" id="fileStockMM" accept=".xlsx,.xls" multiple="" style="display:none">
+    <input type="file" id="fileStockMM" accept=".xlsx,.xls" multiple style="display:none">
     <div id="stockMMStatus"></div>
     <div id="stockMMFileList" class="file-list"></div>
   </div>
@@ -433,11 +434,11 @@
     <h3>Ajustes de inventario</h3>
     <p class="hint">Export de movimientos de material de SAP (hoja "Data") con las clases 711 (SM dif. inv. almacén = faltante) y 712 (EM dif. inv. almacén = sobrante). Columnas usadas: Fecha contabiliz., Documento material, Posición doc.mat., Clase de movimiento, Material, Texto breve material, Lote, Cantidad, Impte.mon.local, Almacén y Nombre del usuario. Puedes subir archivos con períodos que se repiten: los movimientos se unen sin duplicar (por documento + posición).</p>
     <div class="dropzone" id="dropAjustes" onclick="document.getElementById('fileAjustes').click()">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
       <p>Arrastra el archivo de ajustes aquí</p>
       <span>o haz clic para seleccionar</span>
     </div>
-    <input type="file" id="fileAjustes" accept=".xlsx,.xls" multiple="" style="display:none">
+    <input type="file" id="fileAjustes" accept=".xlsx,.xls" multiple style="display:none">
     <div id="ajustesStatus"></div>
     <div id="ajustesFileList" class="file-list"></div>
   </div>
@@ -448,11 +449,11 @@
     <h3>FEFO y Merma</h3>
     <p class="hint">Archivo "Historial de FEFO y MERMA" (hoja "Base"). Columnas usadas: F. Fefo, Tipo (FEFO / Merma), Origen, Material, Descripción, Lote, Cantidad (+), Importe (+), Almacén, Usuario y Doc Material. Si subes un archivo nuevo, para cada fecha se usan los datos del archivo cargado más recientemente que traiga esa fecha (sin duplicar).</p>
     <div class="dropzone" id="dropFefo" onclick="document.getElementById('fileFefo').click()">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
       <p>Arrastra el archivo de FEFO y Merma aquí</p>
       <span>o haz clic para seleccionar</span>
     </div>
-    <input type="file" id="fileFefo" accept=".xlsx,.xls" multiple="" style="display:none">
+    <input type="file" id="fileFefo" accept=".xlsx,.xls" multiple style="display:none">
     <div id="fefoStatus"></div>
     <div id="fefoFileList" class="file-list"></div>
   </div>
@@ -463,11 +464,11 @@
     <h3>KPIs Inventarios — Registro de pallets perdidos</h3>
     <p class="hint">Planilla "Registro de pallets perdidos" (hoja "Data"). Columnas usadas: FECHA DETECCION, CÓDIGO, DESCRIPCION, CANTIDAD, HU, RESPONSABLE, FECHA INCIDENTE, MOTIVO, TURNO y QUIÉN DETECTA. Si trae la hoja "USERS" se usa para el nombre y cargo de cada usuario SAP (el RUT no se guarda). Se valoriza con el costo unitario de Bases. Un mismo pallet (HU + código) registrado dos veces se cuenta una sola vez; puedes subir un archivo por mes.</p>
     <div class="dropzone" id="dropKpiinv" onclick="document.getElementById('fileKpiinv').click()">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
       <p>Arrastra el registro de pallets perdidos aquí</p>
       <span>o haz clic para seleccionar</span>
     </div>
-    <input type="file" id="fileKpiinv" accept=".xlsx,.xls" multiple="" style="display:none">
+    <input type="file" id="fileKpiinv" accept=".xlsx,.xls" multiple style="display:none">
     <div id="kpiinvStatus"></div>
     <div id="kpiinvFileList" class="file-list"></div>
   </div>
@@ -479,11 +480,11 @@
     <h3>Tránsito — entregas pendientes de recepción</h3>
     <p class="hint">Columnas: Centro, Almacén, Creado por, Entregas (de/a), Documento compras, Entrega, Posición, Material, Denomin.posición, Cantidad entrega, Un.medida venta, En centro, Estado movim.mcía., Estado movim.mcías., Ident.ext.entrega, Proveedor, Nombre del proveedor. Alimenta la pestaña Tránsito.</p>
     <div class="dropzone" id="dropTransito" onclick="document.getElementById('fileTransito').click()">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
       <p>Arrastra el archivo aquí</p>
       <span>o haz clic para seleccionar</span>
     </div>
-    <input type="file" id="fileTransito" accept=".xlsx,.xls" multiple="" style="display:none">
+    <input type="file" id="fileTransito" accept=".xlsx,.xls" multiple style="display:none">
     <div id="transitoStatus"></div>
     <div id="transitoFileList" class="file-list"></div>
   </div>
@@ -495,11 +496,11 @@
     <h3>NDS — Nivel de servicio (Fill Rate)</h3>
     <p class="hint">Columnas: FECHA, SUBORDE, CLIENTE, COLOR, NVV, RUTA, SKU, DESCRIPCION, SOLICITADO, PREPARADO, QUIEBRE, MOTIVOS, Formato, Suc, Sala, Supervisor, Zonal, Sucursal Sap. Alimenta la pestaña NDS.</p>
     <div class="dropzone" id="dropNds" onclick="document.getElementById('fileNds').click()">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8F8570" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
       <p>Arrastra el archivo aquí</p>
       <span>o haz clic para seleccionar</span>
     </div>
-    <input type="file" id="fileNds" accept=".xlsx,.xls" multiple="" style="display:none">
+    <input type="file" id="fileNds" accept=".xlsx,.xls" multiple style="display:none">
     <div id="ndsStatus"></div>
     <div id="ndsFileList" class="file-list"></div>
   </div>
@@ -3004,11 +3005,14 @@ async function handleFefoFiles(fileList){
       const wb = XLSX.read(buf, {type:'array', cellDates:true});
       const parsed = parseFefoWorkbook(wb);
       const snap = computeFefoSnapshot(parsed, file.name);
-      fefoSnapshots = fefoSnapshots.filter(s => s.id !== snap.id);
+      // Un archivo con el mismo nombre que uno ya cargado lo reemplaza (no se acumula).
+      const reemplazaFefo = fefoSnapshots.some(s => s.id === snap.id || s.fileName === snap.fileName);
+      fefoSnapshots = fefoSnapshots.filter(s => s.id !== snap.id && s.fileName !== snap.fileName);
       fefoSnapshots.push(snap);
       okCount++;
       const fmtD = iso => { const [y,m,d] = iso.split('-'); return `${d}-${m}-${y}`; };
       row.innerHTML += ` <span style="color:var(--good)">✓ ${snap.count.toLocaleString('es-CL')} fila(s) · ${fmtD(snap.desde)} a ${fmtD(snap.hasta)}</span>${parsed.omitidas ? `<br><span style="color:var(--warn);font-size:11.5px">⚠ ${parsed.omitidas} fila(s) sin fecha, tipo o material se omitieron.</span>` : ''}`;
+      if(reemplazaFefo) row.innerHTML += ` <span style="color:var(--text-faint)">(reemplazó al archivo anterior con el mismo nombre)</span>`;
     }catch(err){
       errCount++;
       row.innerHTML += ` <span style="color:var(--warn)">✗ ${err.message}</span>`;
@@ -3073,11 +3077,14 @@ async function handleKpiInvFiles(fileList){
       const wb = XLSX.read(buf, {type:'array', cellDates:true});
       const parsed = parseKpiInvWorkbook(wb);
       const snap = computeKpiInvSnapshot(parsed, file.name);
-      kpiInvSnapshots = kpiInvSnapshots.filter(s => s.id !== snap.id);
+      // Un archivo con el mismo nombre que uno ya cargado lo reemplaza (no se acumula).
+      const reemplazaKpi = kpiInvSnapshots.some(s => s.id === snap.id || s.fileName === snap.fileName);
+      kpiInvSnapshots = kpiInvSnapshots.filter(s => s.id !== snap.id && s.fileName !== snap.fileName);
       kpiInvSnapshots.push(snap);
       okCount++;
       const fmtD = iso => { const [y,m,d] = iso.split('-'); return `${d}-${m}-${y}`; };
       row.innerHTML += ` <span style="color:var(--good)">✓ ${snap.count.toLocaleString('es-CL')} registro(s) de errores${snap.iraCount ? ` · ${snap.iraCount.toLocaleString('es-CL')} fila(s) IRA` : ''} · ${fmtD(snap.desde)} a ${fmtD(snap.hasta)}${Object.keys(parsed.users).length ? ` · ${Object.keys(parsed.users).length} usuario(s)` : ''}</span>${parsed.omitidas ? `<br><span style="color:var(--warn);font-size:11.5px">⚠ ${parsed.omitidas} fila(s) sin código o fecha de detección se omitieron.</span>` : ''}`;
+      if(reemplazaKpi) row.innerHTML += ` <span style="color:var(--text-faint)">(reemplazó al archivo anterior con el mismo nombre)</span>`;
     }catch(err){
       errCount++;
       row.innerHTML += ` <span style="color:var(--warn)">✗ ${err.message}</span>`;
@@ -3426,6 +3433,22 @@ function _bytesToBase64(bytes){
   for(let i=0; i<bytes.length; i+=CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i+CH));
   return btoa(bin);
 }
+// Si esta página se abrió dentro de un visor (por ejemplo, la vista previa de Claude), el visor
+// inyecta sus propios <script> en el <head> que interceptan las descargas y las mandan al
+// visor. Copiados a GitHub, rompen todas las exportaciones a Excel (no hay visor al que
+// mandarlas). Esta página no tiene ningún <script> en línea en el <head> (solo los de XLSX y
+// Chart.js con src), así que se eliminan todos los que haya, más el id que el visor pone al body.
+function _limpiarHtmlVisor(html){
+  const iHead = html.indexOf('<head'), fHead = html.indexOf('</head>');
+  if(iHead >= 0 && fHead > iHead){
+    const head = html.slice(iHead, fHead)
+      .replace(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>\s*/gi, '')
+      .replace(new RegExp('<style id="claude-' + '[^"]*"[^>]*>[\\s\\S]*?<\\/style>\\s*', 'gi'), '');
+    html = html.slice(0, iHead) + head + html.slice(fHead);
+  }
+  html = html.replace(new RegExp('<body\\s+id="artifacts-component-' + 'root-html"'), '<body');
+  return html;
+}
 async function generarVersionGithub(btn){
   if(_generandoGithub) return;
   if(!PAGE_SOURCE_HTML){
@@ -3443,7 +3466,7 @@ async function generarVersionGithub(btn){
     const payload = { bases, snapshots, mmSnapshots, ajustesSnapshots, fefoSnapshots, kpiInvSnapshots, transitoSnapshots, ndsSnapshots, exportedAt: new Date().toISOString() };
     const b64 = _bytesToBase64(await _gzipBytes(JSON.stringify(payload)));
 
-    let html = PAGE_SOURCE_HTML;
+    let html = _limpiarHtmlVisor(PAGE_SOURCE_HTML);
     const K = 'const EMBEDDED_' + 'DATA_GZ = "';
     const i = html.indexOf(K);
     if(i < 0) throw new Error('no se encontró EMBEDDED_DATA_GZ');
@@ -3458,6 +3481,9 @@ async function generarVersionGithub(btn){
       html = html.replace(de, a);
     }
 
+    if(html.indexOf('const real' + 'Parent') >= 0 || html.indexOf('artifacts-component-' + 'root') >= 0){
+      throw new Error('quedó código del visor en el archivo. Abre esta versión con doble clic en Chrome o Edge y vuelve a generar.');
+    }
     const blob = new Blob([html], {type:'text/html'});
     const url = URL.createObjectURL(blob);
     const el = document.createElement('a');
@@ -9686,4 +9712,6 @@ async function decodeEmbeddedData(){
   aplicarTheme();
   renderApp();
 })();
-</script></body></html>
+</script>
+</body>
+</html>
